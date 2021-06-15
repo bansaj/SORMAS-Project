@@ -15,28 +15,23 @@
 
 package de.symeda.sormas.backend.sormastosormas;
 
-import java.io.Reader;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 import javax.ejb.LocalBean;
 import javax.ejb.Stateless;
 import javax.inject.Inject;
 
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.opencsv.CSVReader;
-
 import de.symeda.sormas.api.SormasToSormasConfig;
-import de.symeda.sormas.api.utils.CSVUtils;
+import redis.clients.jedis.HostAndPort;
+import redis.clients.jedis.Jedis;
 
 @Stateless
 @LocalBean
@@ -44,24 +39,15 @@ public class ServerAccessDataService {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ServerAccessDataService.class);
 
-	private static final String ORGANIZATION_LIST_FILE_NAME = "organization-list.csv";
-
 	@Inject
 	private SormasToSormasConfig sormasToSormasConfig;
 
 	public Optional<OrganizationServerAccessData> getServerAccessData() {
+		try {
+			Jedis jedis = getJedis();
+			Map<String, String> serverAccess = jedis.hgetAll(sormasToSormasConfig.getId());
 
-		String configPath = sormasToSormasConfig.getPath();
-
-		if (StringUtils.isEmpty(configPath)) {
-			return Optional.empty();
-		}
-
-		Path inputFile = Paths.get(configPath, sormasToSormasConfig.getServerAccessDataFileName());
-
-		try (Reader reader = Files.newBufferedReader(inputFile, StandardCharsets.UTF_8);
-			CSVReader csvReader = CSVUtils.createCSVReader(reader, ',')) {
-			return Optional.of(buildServerAccessData(csvReader.readNext()));
+			return Optional.of(buildServerAccessData(sormasToSormasConfig.getId(), serverAccess));
 
 		} catch (Exception e) {
 			LOGGER.warn("Unexpected error while reading sormas to sormas server access data", e);
@@ -69,30 +55,25 @@ public class ServerAccessDataService {
 		}
 	}
 
+	private Jedis getJedis() {
+		String[] redis = sormasToSormasConfig.getRedisHost().split(":");
+		return new Jedis(new HostAndPort(redis[0], Integer.parseInt(redis[1])));
+	}
+
 	public List<OrganizationServerAccessData> getOrganizationList() {
-		String configPath = sormasToSormasConfig.getPath();
+		Jedis jedis = getJedis();
+		Set<String> keys = jedis.keys("s2s:*");
 
-		if (StringUtils.isEmpty(configPath)) {
-			return Collections.emptyList();
-		}
-
-		String ownOrganizationId = getServerAccessData().map(OrganizationServerAccessData::getId).orElse(null);
-		if (StringUtils.isEmpty(ownOrganizationId)) {
-			return Collections.emptyList();
-		}
-
-		Path inputFile = Paths.get(configPath, ORGANIZATION_LIST_FILE_NAME);
-
-		try (Reader reader = Files.newBufferedReader(inputFile, StandardCharsets.UTF_8);
-			CSVReader csvReader = CSVUtils.createCSVReader(reader, ',')) {
-			return csvReader.readAll()
-				.stream()
-				// skip the empty line and comment lines(starting with #)
-				.filter(r -> r.length > 1 || r[0].startsWith("#"))
-				// parse non-empty lines
-				.map(this::buildServerAccessData)
-				.filter(serverAccessData -> !ownOrganizationId.equals(serverAccessData.getId()))
-				.collect(Collectors.toList());
+		// remove own Id from the set
+		keys.remove("s2s:" + sormasToSormasConfig.getId());
+		try {
+			List<OrganizationServerAccessData> list = new ArrayList<>();
+			for (String key : keys) {
+				Map<String, String> hgetAll = jedis.hgetAll(key);
+				OrganizationServerAccessData organizationServerAccessData = buildServerAccessData(key.split(":")[1], hgetAll);
+				list.add(organizationServerAccessData);
+			}
+			return list;
 		} catch (Exception e) {
 			LOGGER.warn("Unexpected error while reading sormas to sormas server list", e);
 			return Collections.emptyList();
@@ -103,21 +84,8 @@ public class ServerAccessDataService {
 		return getOrganizationList().stream().filter(i -> i.getId().equals(id)).findFirst();
 	}
 
-	private OrganizationServerAccessData buildServerAccessData(String[] row) {
-		OrganizationServerAccessData dto = new OrganizationServerAccessData();
-		if (row[0] != null) {
-			dto.setId(row[0]);
-		}
-		if (row[1] != null) {
-			dto.setName(row[1]);
-		}
-		if (row[2] != null) {
-			dto.setHostName(row[2]);
-		}
-		if (row[3] != null) {
-			dto.setRestUserPassword(row[3]);
-		}
+	private OrganizationServerAccessData buildServerAccessData(String id, Map<String, String> entry) {
+		return new OrganizationServerAccessData(id, entry.get("name"), entry.get("hostname"), entry.get("restUserPassword"));
 
-		return dto;
 	}
 }

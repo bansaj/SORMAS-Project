@@ -19,6 +19,13 @@ public class OrganizationServerAccessData {
 		this.name = name;
 	}
 
+	public OrganizationServerAccessData(String id, String name, String hostName, String restUserPassword) {
+		this.id = id;
+		this.name = name;
+		this.hostName = hostName;
+		this.restUserPassword = restUserPassword;
+	}
+
 	public String getId() {
 		return id;
 	}
