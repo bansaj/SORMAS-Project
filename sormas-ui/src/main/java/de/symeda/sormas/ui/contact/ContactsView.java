@@ -487,7 +487,7 @@ public class ContactsView extends AbstractView {
 								.shareSelectedContacts(
 									((AbstractContactGrid<?>) grid).asMultiSelect().getSelectedItems(),
 									() -> navigateTo(criteria)),
-							FacadeProvider.getSormasToSormasFacade().isFeatureEnabled())));
+							FacadeProvider.getSormasToSormasFacade().isFeatureEnabledForUser())));
 
 				if (isDocGenerationAllowed() && grid instanceof AbstractContactGrid) {
 					bulkActions.add(
@@ -596,7 +596,7 @@ public class ContactsView extends AbstractView {
 	private boolean isBulkEditAllowed() {
 		return viewConfiguration.getViewType().isContactOverview()
 			&& (UserProvider.getCurrent().hasUserRight(UserRight.PERFORM_BULK_OPERATIONS)
-				|| FacadeProvider.getSormasToSormasFacade().isFeatureEnabled());
+				|| FacadeProvider.getSormasToSormasFacade().isFeatureEnabledForUser());
 	}
 
 	private HorizontalLayout buildScrollLayout() {

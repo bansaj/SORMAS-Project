@@ -38,5 +38,7 @@ public interface SormasToSormasFacade {
 
 	void revokeRequests(List<String> requestUuids);
 
-	boolean isFeatureEnabled();
+	boolean isFeatureEnabledForUser();
+
+	boolean isFeatureConfigured();
 }
