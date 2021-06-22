@@ -20,7 +20,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 import javax.ejb.LocalBean;
 import javax.ejb.Stateless;
@@ -30,8 +29,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import de.symeda.sormas.api.SormasToSormasConfig;
-import redis.clients.jedis.HostAndPort;
-import redis.clients.jedis.Jedis;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisURI;
+import io.lettuce.core.api.StatefulRedisConnection;
+import io.lettuce.core.api.sync.RedisCommands;
 
 @Stateless
 @LocalBean
@@ -44,7 +45,7 @@ public class ServerAccessDataService {
 
 	public Optional<OrganizationServerAccessData> getServerAccessData() {
 		try {
-			Jedis jedis = getJedis();
+			Jedis jedis = createRedisConnection();
 			Map<String, String> serverAccess = jedis.hgetAll(sormasToSormasConfig.getId());
 
 			return Optional.of(buildServerAccessData(sormasToSormasConfig.getId(), serverAccess));
@@ -55,21 +56,26 @@ public class ServerAccessDataService {
 		}
 	}
 
-	private Jedis getJedis() {
+	private RedisCommands<String, String> createRedisConnection() {
 		String[] redis = sormasToSormasConfig.getRedisHost().split(":");
-		return new Jedis(new HostAndPort(redis[0], Integer.parseInt(redis[1])));
+		// test for rediss / TLS
+		RedisURI uri = RedisURI.Builder.redis(redis[0], Integer.parseInt(redis[1])).withAuthentication("s2s-client", "password").build();
+		RedisClient redisClient = RedisClient.create("redis://password@localhost:6379/");
+		StatefulRedisConnection<String, String> connection = redisClient.connect();
+		return connection.sync();
 	}
 
 	public List<OrganizationServerAccessData> getOrganizationList() {
-		Jedis jedis = getJedis();
-		Set<String> keys = jedis.keys("s2s:*");
+		RedisCommands<String, String> redis = createRedisConnection();
+		// todo pin to the same prefix as the scopes s2s:
+		List<String> keys = redis.keys("s2s:*");
 
 		// remove own Id from the set
 		keys.remove("s2s:" + sormasToSormasConfig.getId());
 		try {
 			List<OrganizationServerAccessData> list = new ArrayList<>();
 			for (String key : keys) {
-				Map<String, String> hgetAll = jedis.hgetAll(key);
+				Map<String, String> hgetAll = redis.hgetall(key);
 				OrganizationServerAccessData organizationServerAccessData = buildServerAccessData(key.split(":")[1], hgetAll);
 				list.add(organizationServerAccessData);
 			}
