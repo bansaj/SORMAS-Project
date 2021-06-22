@@ -38,6 +38,8 @@ import io.lettuce.core.api.sync.RedisCommands;
 @LocalBean
 public class ServerAccessDataService {
 
+	// todo move this and reject at runtime if setup was wrong
+	private static final String S2S_REALM_PREFIX = "s2s:%s";
 	private static final Logger LOGGER = LoggerFactory.getLogger(ServerAccessDataService.class);
 
 	@Inject
@@ -45,8 +47,9 @@ public class ServerAccessDataService {
 
 	public Optional<OrganizationServerAccessData> getServerAccessData() {
 		try {
-			Jedis jedis = createRedisConnection();
-			Map<String, String> serverAccess = jedis.hgetAll(sormasToSormasConfig.getId());
+			RedisCommands<String, String> redis = createRedisConnection();
+
+			Map<String, String> serverAccess = redis.hgetall(String.format(S2S_REALM_PREFIX, sormasToSormasConfig.getId()));
 
 			return Optional.of(buildServerAccessData(sormasToSormasConfig.getId(), serverAccess));
 
@@ -60,7 +63,7 @@ public class ServerAccessDataService {
 		String[] redis = sormasToSormasConfig.getRedisHost().split(":");
 		// test for rediss / TLS
 		RedisURI uri = RedisURI.Builder.redis(redis[0], Integer.parseInt(redis[1])).withAuthentication("s2s-client", "password").build();
-		RedisClient redisClient = RedisClient.create("redis://password@localhost:6379/");
+		RedisClient redisClient = RedisClient.create(uri);
 		StatefulRedisConnection<String, String> connection = redisClient.connect();
 		return connection.sync();
 	}
@@ -68,10 +71,10 @@ public class ServerAccessDataService {
 	public List<OrganizationServerAccessData> getOrganizationList() {
 		RedisCommands<String, String> redis = createRedisConnection();
 		// todo pin to the same prefix as the scopes s2s:
-		List<String> keys = redis.keys("s2s:*");
+		List<String> keys = redis.keys(String.format(S2S_REALM_PREFIX, "*"));
 
 		// remove own Id from the set
-		keys.remove("s2s:" + sormasToSormasConfig.getId());
+		keys.remove(String.format(S2S_REALM_PREFIX, sormasToSormasConfig.getId()));
 		try {
 			List<OrganizationServerAccessData> list = new ArrayList<>();
 			for (String key : keys) {
