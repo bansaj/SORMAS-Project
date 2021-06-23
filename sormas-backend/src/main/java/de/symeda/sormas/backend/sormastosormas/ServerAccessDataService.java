@@ -40,6 +40,7 @@ public class ServerAccessDataService {
 
 	// todo move this and reject at runtime if setup was wrong
 	private static final String S2S_REALM_PREFIX = "s2s:%s";
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(ServerAccessDataService.class);
 
 	@Inject
@@ -48,9 +49,7 @@ public class ServerAccessDataService {
 	public Optional<OrganizationServerAccessData> getServerAccessData() {
 		try {
 			RedisCommands<String, String> redis = createRedisConnection();
-
 			Map<String, String> serverAccess = redis.hgetall(String.format(S2S_REALM_PREFIX, sormasToSormasConfig.getId()));
-
 			return Optional.of(buildServerAccessData(sormasToSormasConfig.getId(), serverAccess));
 
 		} catch (Exception e) {
@@ -61,8 +60,11 @@ public class ServerAccessDataService {
 
 	private RedisCommands<String, String> createRedisConnection() {
 		String[] redis = sormasToSormasConfig.getRedisHost().split(":");
-		// test for rediss / TLS
-		RedisURI uri = RedisURI.Builder.redis(redis[0], Integer.parseInt(redis[1])).withAuthentication("s2s-client", "password").build();
+		RedisURI uri = RedisURI.Builder.redis(redis[0], Integer.parseInt(redis[1]))
+			.withAuthentication("s2s-client", "password")
+			.withSsl(true)
+			.withVerifyPeer(false)
+			.build();
 		RedisClient redisClient = RedisClient.create(uri);
 		StatefulRedisConnection<String, String> connection = redisClient.connect();
 		return connection.sync();
