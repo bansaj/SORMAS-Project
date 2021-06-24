@@ -15,9 +15,7 @@
 
 package de.symeda.sormas.backend.sormastosormas;
 
-import java.io.File;
 import java.net.MalformedURLException;
-import java.net.URI;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,7 +27,6 @@ import javax.ejb.LocalBean;
 import javax.ejb.Stateless;
 import javax.inject.Inject;
 
-import de.symeda.sormas.backend.crypt.KeyStoreUtils;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.SslOptions;
 import io.lettuce.core.SslVerifyMode;
