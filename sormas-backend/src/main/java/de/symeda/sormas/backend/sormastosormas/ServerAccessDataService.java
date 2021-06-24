@@ -15,6 +15,10 @@
 
 package de.symeda.sormas.backend.sormastosormas;
 
+import java.io.File;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -25,6 +29,10 @@ import javax.ejb.LocalBean;
 import javax.ejb.Stateless;
 import javax.inject.Inject;
 
+import de.symeda.sormas.backend.crypt.KeyStoreUtils;
+import io.lettuce.core.ClientOptions;
+import io.lettuce.core.SslOptions;
+import io.lettuce.core.SslVerifyMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +54,34 @@ public class ServerAccessDataService {
 	@Inject
 	private SormasToSormasConfig sormasToSormasConfig;
 
+	private RedisCommands<String, String> createRedisConnection() {
+		String[] redis = sormasToSormasConfig.getRedisHost().split(":");
+
+		RedisURI uri = RedisURI.Builder.redis(redis[0], Integer.parseInt(redis[1]))
+			.withAuthentication("s2s-client", "password")
+			.withSsl(true)
+			.withVerifyPeer(SslVerifyMode.FULL)
+			.build();
+		RedisClient redisClient = RedisClient.create(uri);
+
+		SslOptions sslOptions = null;
+		try {
+			sslOptions = SslOptions.builder() //
+				.jdkSslProvider()
+				.truststore(Paths.get("/tmp/s2s/redis/redis.truststore.p12").toUri().toURL(), "password")
+				.build();
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		}
+
+		ClientOptions clientOptions = ClientOptions.builder().sslOptions(sslOptions).build();
+
+		redisClient.setOptions(clientOptions);
+
+		StatefulRedisConnection<String, String> connection = redisClient.connect();
+		return connection.sync();
+	}
+
 	public Optional<OrganizationServerAccessData> getServerAccessData() {
 		try {
 			RedisCommands<String, String> redis = createRedisConnection();
@@ -56,18 +92,6 @@ public class ServerAccessDataService {
 			LOGGER.warn("Unexpected error while reading sormas to sormas server access data", e);
 			return Optional.empty();
 		}
-	}
-
-	private RedisCommands<String, String> createRedisConnection() {
-		String[] redis = sormasToSormasConfig.getRedisHost().split(":");
-		RedisURI uri = RedisURI.Builder.redis(redis[0], Integer.parseInt(redis[1]))
-			.withAuthentication("s2s-client", "password")
-			.withSsl(true)
-			.withVerifyPeer(false)
-			.build();
-		RedisClient redisClient = RedisClient.create(uri);
-		StatefulRedisConnection<String, String> connection = redisClient.connect();
-		return connection.sync();
 	}
 
 	public List<OrganizationServerAccessData> getOrganizationList() {
