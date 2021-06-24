@@ -66,7 +66,7 @@ public class ServerAccessDataService {
 
 		SslOptions sslOptions = null;
 		try {
-			sslOptions = SslOptions.builder() //
+			sslOptions = SslOptions.builder()
 				.jdkSslProvider()
 				.truststore(Paths.get("/tmp/s2s/redis/redis.truststore.p12").toUri().toURL(), "password")
 				.build();
