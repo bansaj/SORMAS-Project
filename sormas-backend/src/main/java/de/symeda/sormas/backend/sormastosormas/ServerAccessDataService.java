@@ -71,13 +71,14 @@ public class ServerAccessDataService {
 	}
 
 	public List<OrganizationServerAccessData> getOrganizationList() {
-		RedisCommands<String, String> redis = createRedisConnection();
-		// todo pin to the same prefix as the scopes s2s:
-		List<String> keys = redis.keys(String.format(S2S_REALM_PREFIX, "*"));
-
-		// remove own Id from the set
-		keys.remove(String.format(S2S_REALM_PREFIX, sormasToSormasConfig.getId()));
 		try {
+			RedisCommands<String, String> redis = createRedisConnection();
+			// todo pin to the same prefix as the scopes s2s:
+			List<String> keys = redis.keys(String.format(S2S_REALM_PREFIX, "*"));
+
+			// remove own Id from the set
+			keys.remove(String.format(S2S_REALM_PREFIX, sormasToSormasConfig.getId()));
+
 			List<OrganizationServerAccessData> list = new ArrayList<>();
 			for (String key : keys) {
 				Map<String, String> hgetAll = redis.hgetall(key);
