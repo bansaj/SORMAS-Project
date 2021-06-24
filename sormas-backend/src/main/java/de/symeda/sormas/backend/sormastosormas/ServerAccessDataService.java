@@ -65,6 +65,7 @@ public class ServerAccessDataService {
 		try {
 			sslOptions = SslOptions.builder()
 				.jdkSslProvider()
+				.keystore(Paths.get("/tmp/s2s/redis/redis.keystore.p12").toUri().toURL(), "password".toCharArray())
 				.truststore(Paths.get("/tmp/s2s/redis/redis.truststore.p12").toUri().toURL(), "password")
 				.build();
 		} catch (MalformedURLException e) {
