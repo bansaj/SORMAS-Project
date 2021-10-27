@@ -1,0 +1,44 @@
+version: '2.3'
+services:
+
+  postgres:
+    container_name: postgres
+    image: hzibraunschweig/sormas-postgres:${SORMAS_DOCKER_VERSION:-latest}
+    command: -c 'config_file=/etc/postgresql/postgresql.conf'
+    # command: -c 'config_file=/var/lib/postgresql/data/postgresql.sormas.conf'
+    environment:
+      - POSTGRES_PASSWORD=sormas
+      - DB_NAME=sormas_db
+      - DB_NAME_AUDIT=sormas_audit_db
+      - SORMAS_POSTGRES_PASSWORD=sormas
+      - SORMAS_POSTGRES_USER=sormas_user
+      - TZ=Asia/Kathmandu
+    volumes:
+      - psqldata_cargoserver:/var/lib/postgresql/data
+    ports:
+      - "${SORMAS_POSTGRES_PORT}:5432"
+    networks:
+        - db_network
+  
+  pgadmin:
+    container_name: pgadmin4_container
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    links:
+      - postgres:postgres
+    networks:
+        - db_network
+
+networks:
+  db_network:
+    driver: bridge
+
+volumes:
+  psqldata_cargoserver:
