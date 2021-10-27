@@ -39,9 +39,13 @@ public enum FeatureType {
 		new FeatureType[] {
 			CASE_SURVEILANCE,
 			EVENT_SURVEILLANCE }),
+	ADDITIONAL_TESTS(true,
+		false,
+		new FeatureType[] {
+			SAMPLES_LAB }),
 	TASK_MANAGEMENT(true, true, null),
 	WEEKLY_REPORTING(true, true, null),
-	IMMUNIZATION_MANAGEMENT(true, false, null),
+	IMMUNIZATION_MANAGEMENT(true, true, null),
 	TRAVEL_ENTRIES(true, false, null),
 
 	// FEATURE EXTENSIONS
@@ -106,7 +110,10 @@ public enum FeatureType {
 		false,
 		new FeatureType[] {
 			LAB_MESSAGES }),
-	IMMUNIZATION_STATUS_AUTOMATION(true, false, new FeatureType[]{ IMMUNIZATION_MANAGEMENT}),
+	IMMUNIZATION_STATUS_AUTOMATION(true,
+		true,
+		new FeatureType[] {
+			IMMUNIZATION_MANAGEMENT }),
 
 	PERSON_DUPLICATE_CUSTOM_SEARCH(true, false, null),
 

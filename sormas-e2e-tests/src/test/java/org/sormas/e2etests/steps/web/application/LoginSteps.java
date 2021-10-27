@@ -25,7 +25,7 @@ import cucumber.api.java8.En;
 import javax.inject.Named;
 import org.sormas.e2etests.helpers.WebDriverHelpers;
 import org.sormas.e2etests.pages.application.LoginPage;
-import org.sormas.e2etests.pages.application.MainPage;
+import org.sormas.e2etests.pages.application.dashboard.Surveillance.SurveillanceDashboardPage;
 
 public class LoginSteps implements En {
 
@@ -33,20 +33,11 @@ public class LoginSteps implements En {
   public LoginSteps(
       WebDriverHelpers webDriverHelpers, @Named("ENVIRONMENT_URL") String environmentUrl) {
 
-    When(
-        "^I fill the username with ([^\"]*)$",
-        (String userName) ->
-            webDriverHelpers.fillInWebElement(LoginPage.USER_NAME_INPUT, userName));
-
-    When(
-        "^I fill the password with ([^\"]*)$",
-        (String password) ->
-            webDriverHelpers.fillInWebElement(LoginPage.USER_PASSWORD_INPUT, password));
-
     Given(
         "^I am logged in with name ([^\"]*)$",
         (String name) ->
-            webDriverHelpers.checkWebElementContainsText(MainPage.LOGOUT_BUTTON, name));
+            webDriverHelpers.checkWebElementContainsText(
+                SurveillanceDashboardPage.LOGOUT_BUTTON, name));
 
     Given(
         "^I navigate to SORMAS login page$", () -> webDriverHelpers.accessWebSite(environmentUrl));
@@ -56,11 +47,12 @@ public class LoginSteps implements En {
         () -> webDriverHelpers.clickOnWebElementBySelector(LoginPage.LOGIN_BUTTON));
 
     And(
-        "I log in with the user",
+        "I log in with National User",
         () -> {
           webDriverHelpers.accessWebSite(environmentUrl);
-          webDriverHelpers.fillInWebElement(LoginPage.USER_NAME_INPUT, "NatUser");
-          webDriverHelpers.fillInWebElement(LoginPage.USER_PASSWORD_INPUT, "NatUser38118");
+          webDriverHelpers.fillInWebElement(LoginPage.USER_NAME_INPUT, NATIONAL_USER.getUsername());
+          webDriverHelpers.fillInWebElement(
+              LoginPage.USER_PASSWORD_INPUT, NATIONAL_USER.getPassword());
           webDriverHelpers.clickOnWebElementBySelector(LoginPage.LOGIN_BUTTON);
           webDriverHelpers.waitForPageLoaded();
         });

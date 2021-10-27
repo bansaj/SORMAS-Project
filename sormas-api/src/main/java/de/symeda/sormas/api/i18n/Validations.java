@@ -95,6 +95,7 @@ public interface Validations {
 	String importFacilityAlreadyExists = "importFacilityAlreadyExists";
 	String importFacilityNotUniqueInCommunity = "importFacilityNotUniqueInCommunity";
 	String importFacilityNotUniqueInDistrict = "importFacilityNotUniqueInDistrict";
+	String importIncompleteContent = "importIncompleteContent";
 	String importInvalidDate = "importInvalidDate";
 	String importLabNotUnique = "importLabNotUnique";
 	String importLaboratoryAlreadyExists = "importLaboratoryAlreadyExists";
@@ -102,6 +103,7 @@ public interface Validations {
 	String importPersonContactDetailsWithoutFacilityType = "importPersonContactDetailsWithoutFacilityType";
 	String importPointOfEntryAlreadyExists = "importPointOfEntryAlreadyExists";
 	String importPointOfEntryNotUniqueInDistrict = "importPointOfEntryNotUniqueInDistrict";
+	String importProbablyInvalidSeparator = "importProbablyInvalidSeparator";
 	String importPropertyTypeNotAllowed = "importPropertyTypeNotAllowed";
 	String importRegionAlreadyExists = "importRegionAlreadyExists";
 	String importRegionNotInServerCountry = "importRegionNotInServerCountry";
@@ -157,11 +159,14 @@ public interface Validations {
 	String sormasToSormasCountry = "sormasToSormasCountry";
 	String sormasToSormasDistrict = "sormasToSormasDistrict";
 	String sormasToSormasEventExists = "sormasToSormasEventExists";
+	String sormasToSormasEventParticipantExists = "sormasToSormasEventParticipantExists";
 	String sormasToSormasFacility = "sormasToSormasFacility";
+	String sormasToSormasImmunizationExists = "sormasToSormasImmunizationExists";
 	String sormasToSormasInfrastructure = "sormasToSormasInfrastructure";
 	String sormasToSormasLabMessageExists = "sormasToSormasLabMessageExists";
 	String sormasToSormasNotEditable = "sormasToSormasNotEditable";
 	String sormasToSormasOrganizationIdMissing = "sormasToSormasOrganizationIdMissing";
+	String sormasToSormasOwnershipAlreadyHandedOver = "sormasToSormasOwnershipAlreadyHandedOver";
 	String sormasToSormasPersonEnrolled = "sormasToSormasPersonEnrolled";
 	String sormasToSormasPointOfEntry = "sormasToSormasPointOfEntry";
 	String sormasToSormasRegion = "sormasToSormasRegion";
@@ -176,6 +181,7 @@ public interface Validations {
 	String sormasToSormasSubcontinent = "sormasToSormasSubcontinent";
 	String specifyFirstName = "specifyFirstName";
 	String specifyLastName = "specifyLastName";
+	String specifySex = "specifySex";
 	String statisticsIncidenceOnlyNumbersAllowed = "statisticsIncidenceOnlyNumbersAllowed";
 	String taskMissingCaseLink = "taskMissingCaseLink";
 	String taskMissingContactLink = "taskMissingContactLink";

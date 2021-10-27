@@ -65,6 +65,10 @@ public interface CaseFacade {
 
 	List<CaseIndexDto> getIndexList(CaseCriteria caseCriteria, Integer first, Integer max, List<SortProperty> sortProperties);
 
+	List<CaseSelectionDto> getCaseSelectionList(CaseCriteria caseCriteria);
+
+	List<CaseListEntryDto> getEntriesList(String personUuid, Integer first, Integer max);
+
 	Page<CaseIndexDto> getIndexPage(CaseCriteria caseCriteria, Integer first, Integer max, List<SortProperty> sortProperties);
 
 	Page<CaseIndexDetailedDto> getIndexDetailedPage(
@@ -130,6 +134,8 @@ public interface CaseFacade {
 
 	void deleteCase(String caseUuid) throws ExternalSurveillanceToolException;
 
+	List<String> deleteCases(List<String> caseUuids);
+
 	void deleteCaseAsDuplicate(String caseUuid, String duplicateOfCaseUuid) throws ExternalSurveillanceToolException;
 
 	Date getOldestCaseOnsetDate();
@@ -156,7 +162,7 @@ public interface CaseFacade {
 
 	void mergeCase(String leadUuid, String otherUuid);
 
-	List<CaseIndexDto> getSimilarCases(CaseSimilarityCriteria criteria);
+	List<CaseSelectionDto> getSimilarCases(CaseSimilarityCriteria criteria);
 
 	List<CaseIndexDto[]> getCasesForDuplicateMerging(CaseCriteria criteria, boolean showDuplicatesWithDifferentRegion);
 

@@ -46,6 +46,7 @@ import com.vaadin.v7.ui.AbstractSelect.ItemCaptionMode;
 import com.vaadin.v7.ui.CheckBox;
 import com.vaadin.v7.ui.ComboBox;
 import com.vaadin.v7.ui.DateField;
+import com.vaadin.v7.ui.Field;
 import com.vaadin.v7.ui.TextField;
 
 import de.symeda.sormas.api.Disease;
@@ -70,7 +71,9 @@ import de.symeda.sormas.api.infrastructure.region.RegionReferenceDto;
 import de.symeda.sormas.api.person.PersonDto;
 import de.symeda.sormas.api.person.PresentCondition;
 import de.symeda.sormas.api.person.Sex;
+import de.symeda.sormas.api.person.ApproximateAgeType;
 import de.symeda.sormas.api.symptoms.SymptomsDto;
+import de.symeda.sormas.api.travelentry.TravelEntryDto;
 import de.symeda.sormas.api.user.JurisdictionLevel;
 import de.symeda.sormas.api.user.UserRole;
 import de.symeda.sormas.api.utils.DateHelper;
@@ -78,6 +81,7 @@ import de.symeda.sormas.api.utils.fieldvisibility.FieldVisibilityCheckers;
 import de.symeda.sormas.ui.ControllerProvider;
 import de.symeda.sormas.ui.UserProvider;
 import de.symeda.sormas.ui.utils.AbstractEditForm;
+import de.symeda.sormas.ui.utils.ApproximateAgeValidator;
 import de.symeda.sormas.ui.utils.ComboBoxHelper;
 import de.symeda.sormas.ui.utils.CssStyles;
 import de.symeda.sormas.ui.utils.FieldHelper;
@@ -95,6 +99,9 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 	private static final String RESPONSIBLE_JURISDICTION_HEADING_LOC = "responsibleJurisdictionHeadingLoc";
 	private static final String DIFFERENT_PLACE_OF_STAY_JURISDICTION = "differentPlaceOfStayJurisdiction";
 	private static final String PLACE_OF_STAY_HEADING_LOC = "placeOfStayHeadingLoc";
+	private static final String DIFFERENT_POINT_OF_ENTRY_JURISDICTION = "differentPointOfEntryJurisdiction";
+	private static final String POINT_OF_ENTRY_REGION = "pointOfEntryRegion";
+	private static final String POINT_OF_ENTRY_DISTRICT = "pointOfEntryDistrict";
 
 	private ComboBox birthDateDay;
 	private NullableOptionGroup facilityOrHome;
@@ -103,9 +110,16 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 	private ComboBox responsibleDistrictCombo;
 	private ComboBox responsibleCommunityCombo;
 	private CheckBox differentPlaceOfStayJurisdiction;
+	private CheckBox differentPointOfEntryJurisdiction;
 	private ComboBox districtCombo;
 	private ComboBox communityCombo;
 	private ComboBox facilityCombo;
+	private ComboBox pointOfEntryDistrictCombo;
+
+	// If a case is created form a TravelEntry, the variable convertedTravelEntry provides the
+	// necessary extra data. This variable is expected to be replaced in the implementation of
+	// issue #5910.
+	private TravelEntryDto convertedTravelEntry;
 
 	//@formatter:off
 	private static final String HTML_LAYOUT = fluidRowLocs(CaseDataDto.CASE_ORIGIN, "")
@@ -114,9 +128,9 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 					fluidColumnLoc(6, 0, CaseDataDto.DISEASE),
 					fluidColumn(6, 0,
 							locs(CaseDataDto.DISEASE_DETAILS, CaseDataDto.PLAGUE_TYPE, CaseDataDto.DENGUE_FEVER_TYPE,
-									CaseDataDto.RABIES_TYPE)),
-					fluidColumnLoc(6, 0, CaseDataDto.DISEASE_VARIANT)) +
-			fluidRowLocs(RESPONSIBLE_JURISDICTION_HEADING_LOC)
+									CaseDataDto.RABIES_TYPE)))
+			+ fluidRowLocs(CaseDataDto.DISEASE_VARIANT, CaseDataDto.DISEASE_VARIANT_DETAILS)
+			+ fluidRowLocs(RESPONSIBLE_JURISDICTION_HEADING_LOC)
 			+ fluidRowLocs(CaseDataDto.RESPONSIBLE_REGION, CaseDataDto.RESPONSIBLE_DISTRICT, CaseDataDto.RESPONSIBLE_COMMUNITY)
 			+ fluidRowLocs(CaseDataDto.DONT_SHARE_WITH_REPORTING_TOOL)
 			+ fluidRowLocs(DONT_SHARE_WARNING_LOC)
@@ -126,21 +140,29 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 			+ fluidRowLocs(CaseDataDto.REGION, CaseDataDto.DISTRICT, CaseDataDto.COMMUNITY)
 			+ fluidRowLocs(FACILITY_TYPE_GROUP_LOC, CaseDataDto.FACILITY_TYPE)
 			+ fluidRowLocs(CaseDataDto.HEALTH_FACILITY, CaseDataDto.HEALTH_FACILITY_DETAILS)
+			+ fluidRowLocs(DIFFERENT_POINT_OF_ENTRY_JURISDICTION)
+			+ fluidRowLocs(POINT_OF_ENTRY_REGION, POINT_OF_ENTRY_DISTRICT)
 			+ fluidRowLocs(CaseDataDto.POINT_OF_ENTRY, CaseDataDto.POINT_OF_ENTRY_DETAILS)
 			+ fluidRowLocs(PersonDto.FIRST_NAME, PersonDto.LAST_NAME)
-			+ fluidRow(fluidRowLocs(PersonDto.BIRTH_DATE_YYYY, PersonDto.BIRTH_DATE_MM, PersonDto.BIRTH_DATE_DD),
-			fluidRowLocs(PersonDto.SEX))
+//			+ fluidRow(fluidRowLocs(PersonDto.BIRTH_DATE_YYYY, PersonDto.BIRTH_DATE_MM, PersonDto.BIRTH_DATE_DD),
+//			fluidRowLocs(PersonDto.SEX))
+			+ fluidRow(fluidRowLocs(PersonDto.APPROXIMATE_AGE, PersonDto.APPROXIMATE_AGE_TYPE, PersonDto.APPROXIMATE_AGE_REFERENCE_DATE),
+				fluidRowLocs(PersonDto.SEX))
 			+ fluidRowLocs(PersonDto.NATIONAL_HEALTH_ID, PersonDto.PASSPORT_NUMBER)
 			+ fluidRowLocs(PersonDto.PRESENT_CONDITION, SymptomsDto.ONSET_DATE)
 			+ fluidRowLocs(PersonDto.PHONE, PersonDto.EMAIL_ADDRESS);
 	//@formatter:on
 
-	public CaseCreateForm() {
+	public CaseCreateForm(TravelEntryDto convertedTravelEntry) {
 
-		super(CaseDataDto.class, CaseDataDto.I18N_PREFIX, FieldVisibilityCheckers.withCountry(FacadeProvider.getConfigFacade().getCountryLocale()));
-
+		super(
+			CaseDataDto.class,
+			CaseDataDto.I18N_PREFIX,
+			false,
+			FieldVisibilityCheckers.withCountry(FacadeProvider.getConfigFacade().getCountryLocale()));
+		this.convertedTravelEntry = convertedTravelEntry;
+		addFields();
 		setWidth(720, Unit.PIXELS);
-
 		hideValidationUntilNextCommit();
 	}
 
@@ -165,6 +187,8 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 		addField(CaseDataDto.REPORT_DATE, DateField.class);
 		ComboBox diseaseField = addDiseaseField(CaseDataDto.DISEASE, false, true);
 		ComboBox diseaseVariantField = addField(CaseDataDto.DISEASE_VARIANT, ComboBox.class);
+		TextField diseaseVariantDetailsField = addField(CaseDataDto.DISEASE_VARIANT_DETAILS, TextField.class);
+		diseaseVariantDetailsField.setVisible(false);
 		diseaseVariantField.setNullSelectionAllowed(true);
 		diseaseVariantField.setVisible(false);
 		addField(CaseDataDto.DISEASE_DETAILS, TextField.class);
@@ -175,52 +199,58 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 		addCustomField(PersonDto.LAST_NAME, String.class, TextField.class);
 		addCustomField(PersonDto.NATIONAL_HEALTH_ID, String.class, TextField.class);
 		addCustomField(PersonDto.PASSPORT_NUMBER, String.class, TextField.class);
-
-		birthDateDay = addCustomField(PersonDto.BIRTH_DATE_DD, Integer.class, ComboBox.class);
-		// @TODO: Done for nullselection Bug, fixed in Vaadin 7.7.3
-		birthDateDay.setNullSelectionAllowed(true);
-		birthDateDay.addStyleName(FORCE_CAPTION);
-		birthDateDay.setInputPrompt(I18nProperties.getString(Strings.day));
-		ComboBox birthDateMonth = addCustomField(PersonDto.BIRTH_DATE_MM, Integer.class, ComboBox.class);
-		// @TODO: Done for nullselection Bug, fixed in Vaadin 7.7.3
-		birthDateMonth.setNullSelectionAllowed(true);
-		birthDateMonth.addItems(DateHelper.getMonthsInYear());
-		birthDateMonth.setPageLength(12);
-		birthDateMonth.addStyleName(FORCE_CAPTION);
-		birthDateMonth.setInputPrompt(I18nProperties.getString(Strings.month));
-		setItemCaptionsForMonths(birthDateMonth);
-		ComboBox birthDateYear = addCustomField(PersonDto.BIRTH_DATE_YYYY, Integer.class, ComboBox.class);
-		birthDateYear.setCaption(I18nProperties.getPrefixCaption(PersonDto.I18N_PREFIX, PersonDto.BIRTH_DATE));
-		// @TODO: Done for nullselection Bug, fixed in Vaadin 7.7.3
-		birthDateYear.setNullSelectionAllowed(true);
-		birthDateYear.addItems(DateHelper.getYearsToNow());
-		birthDateYear.setItemCaptionMode(ItemCaptionMode.ID_TOSTRING);
-		birthDateYear.setInputPrompt(I18nProperties.getString(Strings.year));
-		birthDateDay.addValidator(
-			e -> ControllerProvider.getPersonController()
-				.validateBirthDate((Integer) birthDateYear.getValue(), (Integer) birthDateMonth.getValue(), (Integer) e));
-		birthDateMonth.addValidator(
-			e -> ControllerProvider.getPersonController()
-				.validateBirthDate((Integer) birthDateYear.getValue(), (Integer) e, (Integer) birthDateDay.getValue()));
-		birthDateYear.addValidator(
-			e -> ControllerProvider.getPersonController()
-				.validateBirthDate((Integer) e, (Integer) birthDateMonth.getValue(), (Integer) birthDateDay.getValue()));
-
-		// Update the list of days according to the selected month and year
-		birthDateYear.addValueChangeListener(e -> {
-			updateListOfDays((Integer) e.getProperty().getValue(), (Integer) birthDateMonth.getValue());
-			birthDateMonth.markAsDirty();
-			birthDateDay.markAsDirty();
-		});
-		birthDateMonth.addValueChangeListener(e -> {
-			updateListOfDays((Integer) birthDateYear.getValue(), (Integer) e.getProperty().getValue());
-			birthDateYear.markAsDirty();
-			birthDateDay.markAsDirty();
-		});
-		birthDateDay.addValueChangeListener(e -> {
-			birthDateYear.markAsDirty();
-			birthDateMonth.markAsDirty();
-		});
+		
+		addCustomField(PersonDto.APPROXIMATE_AGE, String.class, TextField.class).setCaption(I18nProperties.getCaption(Captions.Person_approximateAge));
+		ComboBox approximateAgeTypeField = addCustomField(PersonDto.APPROXIMATE_AGE_TYPE , ApproximateAgeType.class, ComboBox.class);
+		approximateAgeTypeField.setCaption(I18nProperties.getCaption(Captions.Person_approximateAgeType));
+		
+//		birthDateDay = addCustomField(PersonDto.BIRTH_DATE_DD, Integer.class, ComboBox.class);
+//		// @TODO: Done for nullselection Bug, fixed in Vaadin 7.7.3
+//		birthDateDay.setNullSelectionAllowed(true);
+//		birthDateDay.addStyleName(FORCE_CAPTION);
+//		birthDateDay.setInputPrompt(I18nProperties.getString(Strings.day));
+//		ComboBox birthDateMonth = addCustomField(PersonDto.BIRTH_DATE_MM, Integer.class, ComboBox.class);
+//		// @TODO: Done for nullselection Bug, fixed in Vaadin 7.7.3
+//		birthDateMonth.setNullSelectionAllowed(true);
+//		birthDateMonth.addItems(DateHelper.getMonthsInYear());
+//		birthDateMonth.setPageLength(12);
+//		birthDateMonth.addStyleName(FORCE_CAPTION);
+//		birthDateMonth.setInputPrompt(I18nProperties.getString(Strings.month));
+//		setItemCaptionsForMonths(birthDateMonth);
+//		ComboBox birthDateYear = addCustomField(PersonDto.BIRTH_DATE_YYYY, Integer.class, ComboBox.class);
+//		birthDateYear.setCaption(I18nProperties.getPrefixCaption(PersonDto.I18N_PREFIX, PersonDto.BIRTH_DATE));
+//		// @TODO: Done for nullselection Bug, fixed in Vaadin 7.7.3
+//		birthDateYear.setNullSelectionAllowed(true);
+//		birthDateYear.addItems(DateHelper.getYearsToNow());
+//		birthDateYear.setItemCaptionMode(ItemCaptionMode.ID_TOSTRING);
+//		birthDateYear.setInputPrompt(I18nProperties.getString(Strings.year));
+//		birthDateDay.addValidator(
+//			e -> ControllerProvider.getPersonController()
+//				.validateBirthDate((Integer) birthDateYear.getValue(), (Integer) birthDateMonth.getValue(), (Integer) e));
+//		birthDateMonth.addValidator(
+//			e -> ControllerProvider.getPersonController()
+//				.validateBirthDate((Integer) birthDateYear.getValue(), (Integer) e, (Integer) birthDateDay.getValue()));
+//		birthDateYear.addValidator(
+//			e -> ControllerProvider.getPersonController()
+//				.validateBirthDate((Integer) e, (Integer) birthDateMonth.getValue(), (Integer) birthDateDay.getValue()));
+//
+//		// Update the list of days according to the selected month and year
+//		birthDateYear.addValueChangeListener(e -> {
+//			updateListOfDays((Integer) e.getProperty().getValue(), (Integer) birthDateMonth.getValue());
+//			birthDateMonth.markAsDirty();
+//			birthDateDay.markAsDirty();
+//		});
+//		birthDateMonth.addValueChangeListener(e -> {
+//			updateListOfDays((Integer) birthDateYear.getValue(), (Integer) e.getProperty().getValue());
+//			birthDateYear.markAsDirty();
+//			birthDateDay.markAsDirty();
+//		});
+//		birthDateDay.addValueChangeListener(e -> {
+//			birthDateYear.markAsDirty();
+//			birthDateMonth.markAsDirty();
+//		});
+		
+		
 
 		ComboBox sex = addCustomField(PersonDto.SEX, Sex.class, ComboBox.class);
 		sex.setCaption(I18nProperties.getCaption(Captions.Person_sex));
@@ -268,9 +298,26 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 
 		InfrastructureFieldsHelper.initInfrastructureFields(responsibleRegion, responsibleDistrictCombo, responsibleCommunityCombo);
 
+		differentPointOfEntryJurisdiction = addCustomField(DIFFERENT_POINT_OF_ENTRY_JURISDICTION, Boolean.class, CheckBox.class);
+		differentPointOfEntryJurisdiction.addStyleName(VSPACE_3);
+
+		ComboBox pointOfEntryRegionCombo = addCustomField(POINT_OF_ENTRY_REGION, RegionReferenceDto.class, ComboBox.class);
+		pointOfEntryDistrictCombo = addCustomField(POINT_OF_ENTRY_DISTRICT, DistrictReferenceDto.class, ComboBox.class);
+		InfrastructureFieldsHelper.initInfrastructureFields(pointOfEntryRegionCombo, pointOfEntryDistrictCombo, null);
+
+		pointOfEntryDistrictCombo.addValueChangeListener(e -> updatePOEs());
+
+		// InfrastructureFieldsHelper.initInfrastructureFields(pointOfEntryRegionCombo, pointOfEntryDistrictCombo, null);
+
 		FieldHelper.setVisibleWhen(
 			differentPlaceOfStayJurisdiction,
 			Arrays.asList(region, districtCombo, communityCombo),
+			Collections.singletonList(Boolean.TRUE),
+			true);
+
+		FieldHelper.setVisibleWhen(
+			differentPointOfEntryJurisdiction,
+			Arrays.asList(pointOfEntryRegionCombo, pointOfEntryDistrictCombo),
 			Collections.singletonList(Boolean.TRUE),
 			true);
 
@@ -280,6 +327,13 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 			Collections.singletonList(Boolean.TRUE),
 			false,
 			null);
+
+		ogCaseOrigin.addValueChangeListener(e -> {
+			boolean pointOfEntryRegionDistrictVisible =
+				CaseOrigin.POINT_OF_ENTRY.equals(ogCaseOrigin.getValue()) && Boolean.TRUE.equals(differentPointOfEntryJurisdiction.getValue());
+			pointOfEntryRegionCombo.setVisible(pointOfEntryRegionDistrictVisible);
+			pointOfEntryDistrictCombo.setVisible(pointOfEntryRegionDistrictVisible);
+		});
 
 		facilityOrHome =
 			addCustomField(FACILITY_OR_HOME_LOC, TypeOfPlace.class, NullableOptionGroup.class, I18nProperties.getCaption(Captions.casePlaceOfStay));
@@ -312,6 +366,26 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 		TextField tfPointOfEntryDetails = addField(CaseDataDto.POINT_OF_ENTRY_DETAILS, TextField.class);
 		tfPointOfEntryDetails.setVisible(false);
 
+		if (convertedTravelEntry != null) {
+			differentPointOfEntryJurisdiction.setValue(true);
+			RegionReferenceDto regionReferenceDto = convertedTravelEntry.getPointOfEntryRegion() != null
+				? convertedTravelEntry.getPointOfEntryRegion()
+				: convertedTravelEntry.getResponsibleRegion();
+			pointOfEntryRegionCombo.setValue(regionReferenceDto);
+			DistrictReferenceDto districtReferenceDto = convertedTravelEntry.getPointOfEntryDistrict() != null
+				? convertedTravelEntry.getPointOfEntryDistrict()
+				: convertedTravelEntry.getResponsibleDistrict();
+			pointOfEntryDistrictCombo.setValue(districtReferenceDto);
+
+			differentPointOfEntryJurisdiction.setReadOnly(true);
+			pointOfEntryRegionCombo.setReadOnly(true);
+			pointOfEntryDistrictCombo.setReadOnly(true);
+			updatePOEs();
+			cbPointOfEntry.setReadOnly(true);
+			tfPointOfEntryDetails.setReadOnly(true);
+			ogCaseOrigin.setReadOnly(true);
+		}
+
 		region.addValueChangeListener(e -> {
 			RegionReferenceDto regionDto = (RegionReferenceDto) e.getProperty().getValue();
 			FieldHelper
@@ -325,7 +399,9 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 				districtDto != null ? FacadeProvider.getCommunityFacade().getAllActiveByDistrict(districtDto.getUuid()) : null);
 
 			updateFacility();
-			updatePOEs();
+			if (!Boolean.TRUE.equals(differentPointOfEntryJurisdiction.getValue())) {
+				updatePOEs();
+			}
 		});
 		communityCombo.addValueChangeListener(e -> {
 			updateFacility();
@@ -365,8 +441,8 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 		facilityType.addValueChangeListener(e -> updateFacility());
 		region.addItems(FacadeProvider.getRegionFacade().getAllActiveByServerCountry());
 
-		JurisdictionLevel userJurisditionLevel = UserRole.getJurisdictionLevel(UserProvider.getCurrent().getUserRoles());
-		if (userJurisditionLevel == JurisdictionLevel.HEALTH_FACILITY) {
+		JurisdictionLevel userJurisdictionLevel = UserRole.getJurisdictionLevel(UserProvider.getCurrent().getUserRoles());
+		if (userJurisdictionLevel == JurisdictionLevel.HEALTH_FACILITY) {
 			region.setReadOnly(true);
 			responsibleRegion.setReadOnly(true);
 			districtCombo.setReadOnly(true);
@@ -391,13 +467,15 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 			ogCaseOrigin.addValueChangeListener(ev -> {
 				if (ev.getProperty().getValue() == CaseOrigin.IN_COUNTRY) {
 					setVisible(false, CaseDataDto.POINT_OF_ENTRY, CaseDataDto.POINT_OF_ENTRY_DETAILS);
+					differentPointOfEntryJurisdiction.setVisible(false);
 					setRequired(true, FACILITY_OR_HOME_LOC, FACILITY_TYPE_GROUP_LOC, CaseDataDto.FACILITY_TYPE, CaseDataDto.HEALTH_FACILITY);
 					setRequired(false, CaseDataDto.POINT_OF_ENTRY);
 					updateFacilityFields(facilityCombo, facilityDetails);
 				} else {
 					setVisible(true, CaseDataDto.POINT_OF_ENTRY);
+					differentPointOfEntryJurisdiction.setVisible(true);
 					setRequired(true, CaseDataDto.POINT_OF_ENTRY);
-					if (userJurisditionLevel != JurisdictionLevel.HEALTH_FACILITY) {
+					if (userJurisdictionLevel != JurisdictionLevel.HEALTH_FACILITY) {
 						facilityOrHome.clear();
 						setRequired(false, FACILITY_OR_HOME_LOC, FACILITY_TYPE_GROUP_LOC, CaseDataDto.FACILITY_TYPE, CaseDataDto.HEALTH_FACILITY);
 					}
@@ -409,11 +487,12 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 		// jurisdiction field valuechangelisteners
 		responsibleDistrictCombo.addValueChangeListener(e -> {
 			Boolean differentPlaceOfStay = differentPlaceOfStayJurisdiction.getValue();
-			if (differentPlaceOfStay == null || Boolean.FALSE.equals(differentPlaceOfStay)) {
+			if (!Boolean.TRUE.equals(differentPlaceOfStay)) {
 				updateFacility();
+				if (!Boolean.TRUE.equals(differentPointOfEntryJurisdiction.getValue())) {
+					updatePOEs();
+				}
 			}
-
-			updatePOEs();
 		});
 		responsibleCommunityCombo.addValueChangeListener((e) -> {
 			Boolean differentPlaceOfStay = differentPlaceOfStayJurisdiction.getValue();
@@ -424,12 +503,15 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 
 		differentPlaceOfStayJurisdiction.addValueChangeListener(e -> {
 			updateFacility();
-			updatePOEs();
+			if (!Boolean.TRUE.equals(differentPointOfEntryJurisdiction.getValue())) {
+				updatePOEs();
+			}
 		});
 
 		// Set initial visibilities & accesses
 		initializeVisibilitiesAndAllowedVisibilities();
 
+//		setReadOnly(true, PersonDto.APPROXIMATE_AGE_REFERENCE_DATE);
 		setRequired(
 			true,
 			CaseDataDto.REPORT_DATE,
@@ -440,6 +522,21 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 			FACILITY_OR_HOME_LOC,
 			FACILITY_TYPE_GROUP_LOC,
 			CaseDataDto.FACILITY_TYPE);
+		
+		FieldHelper.setRequiredWhenNotNull(getFieldGroup(), PersonDto.APPROXIMATE_AGE, PersonDto.APPROXIMATE_AGE_TYPE);
+		addFieldListeners(PersonDto.APPROXIMATE_AGE, e -> {
+			@SuppressWarnings("unchecked")
+			Field<ApproximateAgeType> ageTypeField = (Field<ApproximateAgeType>) getField(PersonDto.APPROXIMATE_AGE_TYPE);
+			if (!ageTypeField.isReadOnly()) {
+				if (e.getProperty().getValue() == null) {
+					ageTypeField.clear();
+				} else {
+					if (ageTypeField.isEmpty()) {
+						ageTypeField.setValue(ApproximateAgeType.YEARS);
+					}
+				}
+			}
+		});
 		FieldHelper.addSoftRequiredStyle(plagueType, communityCombo, facilityDetails);
 
 		FieldHelper
@@ -494,6 +591,9 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 			diseaseVariantField
 				.setVisible(disease != null && isVisibleAllowed(CaseDataDto.DISEASE_VARIANT) && CollectionUtils.isNotEmpty(diseaseVariants));
 		});
+		diseaseVariantField.addValueChangeListener(
+			e -> diseaseVariantDetailsField
+				.setVisible(((DiseaseVariant) e.getProperty().getValue()).matchPropertyValue(DiseaseVariant.HAS_DETAILS, true)));
 	}
 
 	private void setNoneFacility() {
@@ -544,14 +644,23 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 
 	private void updatePOEs() {
 
-		DistrictReferenceDto districtDto = differentPlaceOfStayJurisdiction.getValue()
-			? (DistrictReferenceDto) districtCombo.getValue()
-			: (DistrictReferenceDto) responsibleDistrictCombo.getValue();
+		ComboBox comboBoxPOE = (ComboBox) getField(CaseDataDto.POINT_OF_ENTRY);
+		if (!comboBoxPOE.isReadOnly()) {
+			DistrictReferenceDto districtDto;
 
-		List<PointOfEntryReferenceDto> POEs = districtDto == null
-			? Collections.emptyList()
-			: FacadeProvider.getPointOfEntryFacade().getAllActiveByDistrict(districtDto.getUuid(), true);
-		FieldHelper.updateItems((ComboBox) getField(CaseDataDto.POINT_OF_ENTRY), POEs);
+			if (Boolean.TRUE.equals(differentPointOfEntryJurisdiction.getValue())) {
+				districtDto = (DistrictReferenceDto) pointOfEntryDistrictCombo.getValue();
+			} else if (Boolean.TRUE.equals(differentPlaceOfStayJurisdiction.getValue())) {
+				districtDto = (DistrictReferenceDto) districtCombo.getValue();
+			} else {
+				districtDto = (DistrictReferenceDto) responsibleDistrictCombo.getValue();
+			}
+
+			List<PointOfEntryReferenceDto> POEs = districtDto == null
+				? Collections.emptyList()
+				: FacadeProvider.getPointOfEntryFacade().getAllActiveByDistrict(districtDto.getUuid(), true);
+			FieldHelper.updateItems(comboBoxPOE, POEs);
+		}
 	}
 
 	private void updateListOfDays(Integer selectedYear, Integer selectedMonth) {
@@ -640,6 +749,19 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 		return (String) getField(PersonDto.PASSPORT_NUMBER).getValue();
 	}
 
+	public String getApproximateAge() {
+		return (String) getField(PersonDto.APPROXIMATE_AGE).getValue();
+	}
+	
+	public Date getReportDate() {
+		return (Date) getField(CaseDataDto.REPORT_DATE).getValue();	
+	}
+
+	public ApproximateAgeType getApproximateAgeType() {
+		return (ApproximateAgeType) getField(PersonDto.APPROXIMATE_AGE_TYPE).getValue();
+	}
+
+
 	public Integer getBirthdateDD() {
 		return (Integer) getField(PersonDto.BIRTH_DATE_DD).getValue();
 	}
@@ -677,9 +799,11 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 		if (person != null) {
 			((TextField) getField(PersonDto.FIRST_NAME)).setValue(person.getFirstName());
 			((TextField) getField(PersonDto.LAST_NAME)).setValue(person.getLastName());
-			((ComboBox) getField(PersonDto.BIRTH_DATE_YYYY)).setValue(person.getBirthdateYYYY());
-			((ComboBox) getField(PersonDto.BIRTH_DATE_MM)).setValue(person.getBirthdateMM());
-			((ComboBox) getField(PersonDto.BIRTH_DATE_DD)).setValue(person.getBirthdateDD());
+			((TextField) getField(PersonDto.APPROXIMATE_AGE)).setValue(person.getApproximateAge().toString());
+			((ComboBox) getField(PersonDto.APPROXIMATE_AGE_TYPE)).setValue(person.getApproximateAgeType());	
+//			((ComboBox) getField(PersonDto.BIRTH_DATE_YYYY)).setValue(person.getBirthdateYYYY());
+//			((ComboBox) getField(PersonDto.BIRTH_DATE_MM)).setValue(person.getBirthdateMM());
+//			((ComboBox) getField(PersonDto.BIRTH_DATE_DD)).setValue(person.getBirthdateDD());
 			((ComboBox) getField(PersonDto.SEX)).setValue(person.getSex());
 			((ComboBox) getField(PersonDto.PRESENT_CONDITION)).setValue(person.getPresentCondition());
 			((TextField) getField(PersonDto.PHONE)).setValue(person.getPhone());
@@ -687,9 +811,11 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 		} else {
 			getField(PersonDto.FIRST_NAME).clear();
 			getField(PersonDto.LAST_NAME).clear();
-			getField(PersonDto.BIRTH_DATE_DD).clear();
-			getField(PersonDto.BIRTH_DATE_MM).clear();
-			getField(PersonDto.BIRTH_DATE_YYYY).clear();
+			getField(PersonDto.APPROXIMATE_AGE).clear();
+			getField(PersonDto.APPROXIMATE_AGE_TYPE).clear();
+//			getField(PersonDto.BIRTH_DATE_DD).clear();
+//			getField(PersonDto.BIRTH_DATE_MM).clear();
+//			getField(PersonDto.BIRTH_DATE_YYYY).clear();
 			getField(PersonDto.SEX).clear();
 			getField(PersonDto.PRESENT_CONDITION).clear();
 			getField(PersonDto.PHONE).clear();
@@ -713,15 +839,21 @@ public class CaseCreateForm extends AbstractEditForm<CaseDataDto> {
 		if (getField(PersonDto.SEX).getValue() != null) {
 			getField(PersonDto.SEX).setEnabled(!readOnly);
 		}
-		if (getField(PersonDto.BIRTH_DATE_YYYY).getValue() != null) {
-			getField(PersonDto.BIRTH_DATE_YYYY).setEnabled(!readOnly);
+		if (getField(PersonDto.APPROXIMATE_AGE).getValue() != null) {
+			getField(PersonDto.APPROXIMATE_AGE).setEnabled(!readOnly);
 		}
-		if (getField(PersonDto.BIRTH_DATE_MM).getValue() != null) {
-			getField(PersonDto.BIRTH_DATE_MM).setEnabled(!readOnly);
+		if (getField(PersonDto.APPROXIMATE_AGE_TYPE).getValue() != null) {
+			getField(PersonDto.APPROXIMATE_AGE_TYPE).setEnabled(!readOnly);
 		}
-		if (getField(PersonDto.BIRTH_DATE_DD).getValue() != null) {
-			getField(PersonDto.BIRTH_DATE_DD).setEnabled(!readOnly);
-		}
+//		if (getField(PersonDto.BIRTH_DATE_YYYY).getValue() != null) {
+//			getField(PersonDto.BIRTH_DATE_YYYY).setEnabled(!readOnly);
+//		}
+//		if (getField(PersonDto.BIRTH_DATE_MM).getValue() != null) {
+//			getField(PersonDto.BIRTH_DATE_MM).setEnabled(!readOnly);
+//		}
+//		if (getField(PersonDto.BIRTH_DATE_DD).getValue() != null) {
+//			getField(PersonDto.BIRTH_DATE_DD).setEnabled(!readOnly);
+//		}
 	}
 
 	public void setDiseaseReadOnly(boolean readOnly) {

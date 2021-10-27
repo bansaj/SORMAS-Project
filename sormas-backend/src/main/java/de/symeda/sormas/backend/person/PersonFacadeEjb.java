@@ -357,7 +357,7 @@ public class PersonFacadeEjb implements PersonFacade {
 		}
 	}
 
-	public String getEmailAddress(PersonDto person, boolean onlyPrimary) {
+	private String getEmailAddress(PersonDto person, boolean onlyPrimary) {
 		try {
 			return person.getEmailAddress(onlyPrimary);
 		} catch (PersonDto.SeveralNonPrimaryContactDetailsException e) {
@@ -365,7 +365,7 @@ public class PersonFacadeEjb implements PersonFacade {
 		}
 	}
 
-	public String getPhone(PersonDto person, boolean onlyPrimary) {
+	private String getPhone(PersonDto person, boolean onlyPrimary) {
 		try {
 			return person.getPhone(onlyPrimary);
 		} catch (PersonDto.SeveralNonPrimaryContactDetailsException e) {
@@ -418,7 +418,9 @@ public class PersonFacadeEjb implements PersonFacade {
 		validate(source);
 
 		if (existingPerson != null && existingPerson.isEnrolledInExternalJournal()) {
-			externalJournalService.validateExternalJournalPerson(source);
+			if (source.isEnrolledInExternalJournal()) {
+				externalJournalService.validateExternalJournalPerson(source);
+			}
 			externalJournalService.handleExternalJournalPersonUpdateAsync(source.toReference());
 		}
 
@@ -508,11 +510,14 @@ public class PersonFacadeEjb implements PersonFacade {
 	@Override
 	public void validate(PersonDto source) throws ValidationRuntimeException {
 
-		if (StringUtils.isEmpty(source.getFirstName())) {
+		if (StringUtils.isBlank(source.getFirstName())) {
 			throw new ValidationRuntimeException(I18nProperties.getValidationError(Validations.specifyFirstName));
 		}
-		if (StringUtils.isEmpty(source.getLastName())) {
+		if (StringUtils.isBlank(source.getLastName())) {
 			throw new ValidationRuntimeException(I18nProperties.getValidationError(Validations.specifyLastName));
+		}
+		if (source.getSex() == null) {
+			throw new ValidationRuntimeException(I18nProperties.getValidationError(Validations.specifySex));
 		}
 		if (source.getPersonContactDetails()
 			.stream()
@@ -542,7 +547,7 @@ public class PersonFacadeEjb implements PersonFacade {
 		if (source.getAddress() != null) {
 			if (source.getAddress().getRegion() != null
 				&& source.getAddress().getDistrict() != null
-				&& !districtFacade.getDistrictByUuid(source.getAddress().getDistrict().getUuid())
+				&& !districtFacade.getByUuid(source.getAddress().getDistrict().getUuid())
 					.getRegion()
 					.equals(source.getAddress().getRegion())) {
 				throw new ValidationRuntimeException(I18nProperties.getValidationError(Validations.noAddressDistrictInAddressRegion));
@@ -855,8 +860,7 @@ public class PersonFacadeEjb implements PersonFacade {
 				approximateAgeType,
 				entity.getBirthdateDD(),
 				entity.getBirthdateMM(),
-				entity.getBirthdateYYYY(),
-				I18nProperties.getUserLanguage()));
+				entity.getBirthdateYYYY()));
 		similarPersonDto.setSex(entity.getSex());
 		similarPersonDto.setPresentCondition(entity.getPresentCondition());
 		similarPersonDto.setPhone(entity.getPhone());
@@ -1042,7 +1046,7 @@ public class PersonFacadeEjb implements PersonFacade {
 	@Override
 	public boolean doesExternalTokenExist(String externalToken, String personUuid) {
 		return personService.exists(
-			(cb, personRoot) -> CriteriaBuilderHelper
+			(cb, personRoot, cq) -> CriteriaBuilderHelper
 				.and(cb, cb.equal(personRoot.get(Person.EXTERNAL_TOKEN), externalToken), cb.notEqual(personRoot.get(Person.UUID), personUuid)));
 	}
 
@@ -1288,10 +1292,11 @@ public class PersonFacadeEjb implements PersonFacade {
 		final Root<Person> person = cq.from(Person.class);
 
 		final PersonQueryContext personQueryContext = new PersonQueryContext(cb, cq, person);
-		((PersonJoins) personQueryContext.getJoins()).configure(criteria);
+		final PersonJoins personJoins = (PersonJoins) personQueryContext.getJoins();
+		personJoins.configure(criteria);
 
-		final Join<Person, Location> location = person.join(Person.ADDRESS, JoinType.LEFT);
-		final Join<Location, District> district = location.join(Location.DISTRICT, JoinType.LEFT);
+		final Join<Person, Location> location = personJoins.getAddress();
+		final Join<Location, District> district = personJoins.getAddressJoins().getDistrict();
 
 		final Subquery<String> phoneSubQuery = cq.subquery(String.class);
 		final Root<PersonContactDetail> phoneRoot = phoneSubQuery.from(PersonContactDetail.class);

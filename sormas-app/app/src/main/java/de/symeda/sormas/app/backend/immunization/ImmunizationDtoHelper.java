@@ -38,10 +38,11 @@ import de.symeda.sormas.app.backend.region.District;
 import de.symeda.sormas.app.backend.region.DistrictDtoHelper;
 import de.symeda.sormas.app.backend.region.Region;
 import de.symeda.sormas.app.backend.region.RegionDtoHelper;
+import de.symeda.sormas.app.backend.sormastosormas.SormasToSormasOriginInfoDtoHelper;
 import de.symeda.sormas.app.backend.user.User;
 import de.symeda.sormas.app.backend.user.UserDtoHelper;
+import de.symeda.sormas.app.backend.vaccination.Vaccination;
 import de.symeda.sormas.app.backend.vaccination.VaccinationDtoHelper;
-import de.symeda.sormas.app.backend.vaccination.VaccinationEntity;
 import de.symeda.sormas.app.rest.NoConnectionException;
 import de.symeda.sormas.app.rest.RetroProvider;
 import retrofit2.Call;
@@ -49,6 +50,7 @@ import retrofit2.Call;
 public class ImmunizationDtoHelper extends AdoDtoHelper<Immunization, ImmunizationDto> {
 
 	private VaccinationDtoHelper vaccinationDtoHelper = new VaccinationDtoHelper();
+	private SormasToSormasOriginInfoDtoHelper sormasToSormasOriginInfoDtoHelper = new SormasToSormasOriginInfoDtoHelper();
 
 	@Override
 	protected Class<Immunization> getAdoClass() {
@@ -107,15 +109,21 @@ public class ImmunizationDtoHelper extends AdoDtoHelper<Immunization, Immunizati
 		target.setRecoveryDate(source.getRecoveryDate());
 		target.setRelatedCase(DatabaseHelper.getCaseDao().getByReferenceDto(source.getRelatedCase()));
 
-		List<VaccinationEntity> vaccinations = new ArrayList<>();
+		List<Vaccination> vaccinations = new ArrayList<>();
 		if (!source.getVaccinations().isEmpty()) {
 			for (VaccinationDto vaccinationDto : source.getVaccinations()) {
-				VaccinationEntity vaccination = vaccinationDtoHelper.fillOrCreateFromDto(null, vaccinationDto);
+				Vaccination vaccination = vaccinationDtoHelper.fillOrCreateFromDto(null, vaccinationDto);
 				vaccination.setImmunization(target);
 				vaccinations.add(vaccination);
 			}
 		}
 		target.setVaccinations(vaccinations);
+
+		target.setSormasToSormasOriginInfo(
+				sormasToSormasOriginInfoDtoHelper.fillOrCreateFromDto(target.getSormasToSormasOriginInfo(), source.getSormasToSormasOriginInfo()));
+		target.setOwnershipHandedOver(source.isOwnershipHandedOver());
+
+		target.setPseudonymized(source.isPseudonymized());
 	}
 
 	@Override
@@ -180,14 +188,21 @@ public class ImmunizationDtoHelper extends AdoDtoHelper<Immunization, Immunizati
 			target.setRelatedCase(CaseDtoHelper.toReferenceDto(caze));
 		}
 
-		List<VaccinationDto> vaccinationEntityDtos = new ArrayList<>();
+		List<VaccinationDto> vaccinationDtos = new ArrayList<>();
+		DatabaseHelper.getImmunizationDao().initVaccinations(source);
 		if (!source.getVaccinations().isEmpty()) {
-			for (VaccinationEntity vaccinationEntity : source.getVaccinations()) {
-				VaccinationDto vaccinationEntityDto = vaccinationDtoHelper.adoToDto(vaccinationEntity);
-				vaccinationEntityDtos.add(vaccinationEntityDto);
+			for (Vaccination vaccination : source.getVaccinations()) {
+				VaccinationDto vaccinationDto = vaccinationDtoHelper.adoToDto(vaccination);
+				vaccinationDtos.add(vaccinationDto);
 			}
 		}
-		target.setVaccinations(vaccinationEntityDtos);
+		target.setVaccinations(vaccinationDtos);
+
+		if (source.getSormasToSormasOriginInfo() != null) {
+			target.setSormasToSormasOriginInfo(sormasToSormasOriginInfoDtoHelper.adoToDto(source.getSormasToSormasOriginInfo()));
+		}
+
+		target.setPseudonymized(source.isPseudonymized());
 	}
 
 	public static ImmunizationReferenceDto toReferenceDto(Immunization ado) {

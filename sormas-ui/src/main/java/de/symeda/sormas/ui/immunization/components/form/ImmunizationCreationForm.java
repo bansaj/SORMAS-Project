@@ -1,3 +1,18 @@
+/*
+ * SORMAS® - Surveillance Outbreak Response Management & Analysis System
+ * Copyright © 2016-2021 Helmholtz-Zentrum für Infektionsforschung GmbH (HZI)
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package de.symeda.sormas.ui.immunization.components.form;
 
 import static de.symeda.sormas.ui.utils.CssStyles.ERROR_COLOR_PRIMARY;
@@ -10,18 +25,18 @@ import static de.symeda.sormas.ui.utils.LayoutUtil.fluidColumnLoc;
 import static de.symeda.sormas.ui.utils.LayoutUtil.fluidRow;
 import static de.symeda.sormas.ui.utils.LayoutUtil.fluidRowLocs;
 
-import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 
 import org.apache.commons.lang3.StringUtils;
 
 import com.vaadin.ui.Label;
-import com.vaadin.v7.data.util.converter.StringToIntegerConverter;
 import com.vaadin.v7.data.validator.EmailValidator;
 import com.vaadin.v7.ui.AbstractSelect;
 import com.vaadin.v7.ui.CheckBox;
 import com.vaadin.v7.ui.ComboBox;
 import com.vaadin.v7.ui.DateField;
+import com.vaadin.v7.ui.Field;
 import com.vaadin.v7.ui.TextField;
 
 import de.symeda.sormas.api.Disease;
@@ -41,6 +56,7 @@ import de.symeda.sormas.api.infrastructure.facility.FacilityDto;
 import de.symeda.sormas.api.infrastructure.facility.FacilityReferenceDto;
 import de.symeda.sormas.api.infrastructure.facility.FacilityType;
 import de.symeda.sormas.api.infrastructure.facility.FacilityTypeGroup;
+import de.symeda.sormas.api.person.ApproximateAgeType;
 import de.symeda.sormas.api.person.PersonDto;
 import de.symeda.sormas.api.person.PersonReferenceDto;
 import de.symeda.sormas.api.person.PresentCondition;
@@ -50,8 +66,11 @@ import de.symeda.sormas.api.utils.fieldvisibility.FieldVisibilityCheckers;
 import de.symeda.sormas.ui.ControllerProvider;
 import de.symeda.sormas.ui.utils.AbstractEditForm;
 import de.symeda.sormas.ui.utils.ComboBoxHelper;
+import de.symeda.sormas.ui.utils.DateComparisonValidator;
 import de.symeda.sormas.ui.utils.FieldHelper;
 import de.symeda.sormas.ui.utils.InfrastructureFieldsHelper;
+import de.symeda.sormas.ui.utils.NumberValidator;
+import de.symeda.sormas.ui.utils.LayoutUtil;
 import de.symeda.sormas.ui.utils.PhoneNumberValidator;
 
 public class ImmunizationCreationForm extends AbstractEditForm<ImmunizationDto> {
@@ -76,16 +95,22 @@ public class ImmunizationCreationForm extends AbstractEditForm<ImmunizationDto> 
 		+ fluidRowLocs(VACCINATION_HEADING_LOC)
 		+ fluidRow(fluidColumnLoc(6, 0, ImmunizationDto.NUMBER_OF_DOSES))
 		+ fluidRowLocs(PersonDto.FIRST_NAME, PersonDto.LAST_NAME)
-		+ fluidRow(fluidRowLocs(PersonDto.BIRTH_DATE_YYYY, PersonDto.BIRTH_DATE_MM, PersonDto.BIRTH_DATE_DD),
-		fluidRowLocs(PersonDto.SEX))
+		+ fluidRow(fluidRowLocs(PersonDto.APPROXIMATE_AGE, PersonDto.APPROXIMATE_AGE_TYPE),
+				fluidRowLocs(PersonDto.SEX))
+//		+ fluidRow(fluidRowLocs(PersonDto.BIRTH_DATE_YYYY, PersonDto.BIRTH_DATE_MM, PersonDto.BIRTH_DATE_DD),
+//		fluidRowLocs(PersonDto.SEX))
 		+ fluidRowLocs(PersonDto.NATIONAL_HEALTH_ID, PersonDto.PASSPORT_NUMBER)
 		+ fluidRowLocs(PersonDto.PRESENT_CONDITION, "")
 		+ fluidRowLocs(PersonDto.PHONE, PersonDto.EMAIL_ADDRESS);
 	//@formatter:on
 
 	private ComboBox birthDateDay;
-	private PersonReferenceDto personDto;
-	private Disease disease;
+	private final PersonReferenceDto personDto;
+	private final Disease disease;
+
+	public ImmunizationCreationForm() {
+		this(null, null);
+	}
 
 	public ImmunizationCreationForm(PersonReferenceDto personDto, Disease disease) {
 		super(
@@ -160,14 +185,16 @@ public class ImmunizationCreationForm extends AbstractEditForm<ImmunizationDto> 
 		TextField facilityDetails = addField(ImmunizationDto.HEALTH_FACILITY_DETAILS, TextField.class);
 		facilityDetails.setVisible(false);
 
-		addField(ImmunizationDto.START_DATE, DateField.class);
-		addDateField(ImmunizationDto.END_DATE, DateField.class, -1);
+		DateField startDate = addField(ImmunizationDto.START_DATE, DateField.class);
+		DateField endDate = addDateField(ImmunizationDto.END_DATE, DateField.class, -1);
+		DateComparisonValidator.addStartEndValidators(startDate, endDate);
 
-		addDateField(ImmunizationDto.VALID_FROM, DateField.class, -1);
-		addDateField(ImmunizationDto.VALID_UNTIL, DateField.class, -1);
+		DateField validFrom = addDateField(ImmunizationDto.VALID_FROM, DateField.class, -1);
+		DateField validUntil = addDateField(ImmunizationDto.VALID_UNTIL, DateField.class, -1);
+		DateComparisonValidator.addStartEndValidators(validFrom, validUntil);
 
-		TextField numberOfDosesField = addField(ImmunizationDto.NUMBER_OF_DOSES, TextField.class);
-		numberOfDosesField.setConverter(new StringToIntegerConverter());
+		Field numberOfDosesField = addField(ImmunizationDto.NUMBER_OF_DOSES);
+		numberOfDosesField.addValidator(new NumberValidator(I18nProperties.getValidationError(Validations.vaccineDosesFormat), 1, 10, false));
 		numberOfDosesField.setVisible(false);
 
 		addCustomField(PersonDto.FIRST_NAME, String.class, TextField.class);
@@ -175,51 +202,55 @@ public class ImmunizationCreationForm extends AbstractEditForm<ImmunizationDto> 
 		addCustomField(PersonDto.NATIONAL_HEALTH_ID, String.class, TextField.class);
 		addCustomField(PersonDto.PASSPORT_NUMBER, String.class, TextField.class);
 
-		birthDateDay = addCustomField(PersonDto.BIRTH_DATE_DD, Integer.class, ComboBox.class);
-		// @TODO: Done for nullselection Bug, fixed in Vaadin 7.7.3
-		birthDateDay.setNullSelectionAllowed(true);
-		birthDateDay.addStyleName(FORCE_CAPTION);
-		birthDateDay.setInputPrompt(I18nProperties.getString(Strings.day));
-		ComboBox birthDateMonth = addCustomField(PersonDto.BIRTH_DATE_MM, Integer.class, ComboBox.class);
-		// @TODO: Done for nullselection Bug, fixed in Vaadin 7.7.3
-		birthDateMonth.setNullSelectionAllowed(true);
-		birthDateMonth.addItems(DateHelper.getMonthsInYear());
-		birthDateMonth.setPageLength(12);
-		birthDateMonth.addStyleName(FORCE_CAPTION);
-		birthDateMonth.setInputPrompt(I18nProperties.getString(Strings.month));
-		setItemCaptionsForMonths(birthDateMonth);
-		ComboBox birthDateYear = addCustomField(PersonDto.BIRTH_DATE_YYYY, Integer.class, ComboBox.class);
-		birthDateYear.setCaption(I18nProperties.getPrefixCaption(PersonDto.I18N_PREFIX, PersonDto.BIRTH_DATE));
-		// @TODO: Done for nullselection Bug, fixed in Vaadin 7.7.3
-		birthDateYear.setNullSelectionAllowed(true);
-		birthDateYear.addItems(DateHelper.getYearsToNow());
-		birthDateYear.setItemCaptionMode(AbstractSelect.ItemCaptionMode.ID_TOSTRING);
-		birthDateYear.setInputPrompt(I18nProperties.getString(Strings.year));
-		birthDateDay.addValidator(
-			e -> ControllerProvider.getPersonController()
-				.validateBirthDate((Integer) birthDateYear.getValue(), (Integer) birthDateMonth.getValue(), (Integer) e));
-		birthDateMonth.addValidator(
-			e -> ControllerProvider.getPersonController()
-				.validateBirthDate((Integer) birthDateYear.getValue(), (Integer) e, (Integer) birthDateDay.getValue()));
-		birthDateYear.addValidator(
-			e -> ControllerProvider.getPersonController()
-				.validateBirthDate((Integer) e, (Integer) birthDateMonth.getValue(), (Integer) birthDateDay.getValue()));
-
-		// Update the list of days according to the selected month and year
-		birthDateYear.addValueChangeListener(e -> {
-			updateListOfDays((Integer) e.getProperty().getValue(), (Integer) birthDateMonth.getValue());
-			birthDateMonth.markAsDirty();
-			birthDateDay.markAsDirty();
-		});
-		birthDateMonth.addValueChangeListener(e -> {
-			updateListOfDays((Integer) birthDateYear.getValue(), (Integer) e.getProperty().getValue());
-			birthDateYear.markAsDirty();
-			birthDateDay.markAsDirty();
-		});
-		birthDateDay.addValueChangeListener(e -> {
-			birthDateYear.markAsDirty();
-			birthDateMonth.markAsDirty();
-		});
+		addCustomField(PersonDto.APPROXIMATE_AGE, String.class, TextField.class).setCaption(I18nProperties.getCaption(Captions.Person_approximateAge));
+		ComboBox approximateAgeTypeField = addCustomField(PersonDto.APPROXIMATE_AGE_TYPE , ApproximateAgeType.class, ComboBox.class);
+		approximateAgeTypeField.setCaption(I18nProperties.getCaption(Captions.Person_approximateAgeType));
+		
+//		birthDateDay = addCustomField(PersonDto.BIRTH_DATE_DD, Integer.class, ComboBox.class);
+//		// @TODO: Done for nullselection Bug, fixed in Vaadin 7.7.3
+//		birthDateDay.setNullSelectionAllowed(true);
+//		birthDateDay.addStyleName(FORCE_CAPTION);
+//		birthDateDay.setInputPrompt(I18nProperties.getString(Strings.day));
+//		ComboBox birthDateMonth = addCustomField(PersonDto.BIRTH_DATE_MM, Integer.class, ComboBox.class);
+//		// @TODO: Done for nullselection Bug, fixed in Vaadin 7.7.3
+//		birthDateMonth.setNullSelectionAllowed(true);
+//		birthDateMonth.addItems(DateHelper.getMonthsInYear());
+//		birthDateMonth.setPageLength(12);
+//		birthDateMonth.addStyleName(FORCE_CAPTION);
+//		birthDateMonth.setInputPrompt(I18nProperties.getString(Strings.month));
+//		setItemCaptionsForMonths(birthDateMonth);
+//		ComboBox birthDateYear = addCustomField(PersonDto.BIRTH_DATE_YYYY, Integer.class, ComboBox.class);
+//		birthDateYear.setCaption(I18nProperties.getPrefixCaption(PersonDto.I18N_PREFIX, PersonDto.BIRTH_DATE));
+//		// @TODO: Done for nullselection Bug, fixed in Vaadin 7.7.3
+//		birthDateYear.setNullSelectionAllowed(true);
+//		birthDateYear.addItems(DateHelper.getYearsToNow());
+//		birthDateYear.setItemCaptionMode(AbstractSelect.ItemCaptionMode.ID_TOSTRING);
+//		birthDateYear.setInputPrompt(I18nProperties.getString(Strings.year));
+//		birthDateDay.addValidator(
+//			e -> ControllerProvider.getPersonController()
+//				.validateBirthDate((Integer) birthDateYear.getValue(), (Integer) birthDateMonth.getValue(), (Integer) e));
+//		birthDateMonth.addValidator(
+//			e -> ControllerProvider.getPersonController()
+//				.validateBirthDate((Integer) birthDateYear.getValue(), (Integer) e, (Integer) birthDateDay.getValue()));
+//		birthDateYear.addValidator(
+//			e -> ControllerProvider.getPersonController()
+//				.validateBirthDate((Integer) e, (Integer) birthDateMonth.getValue(), (Integer) birthDateDay.getValue()));
+//
+//		// Update the list of days according to the selected month and year
+//		birthDateYear.addValueChangeListener(e -> {
+//			updateListOfDays((Integer) e.getProperty().getValue(), (Integer) birthDateMonth.getValue());
+//			birthDateMonth.markAsDirty();
+//			birthDateDay.markAsDirty();
+//		});
+//		birthDateMonth.addValueChangeListener(e -> {
+//			updateListOfDays((Integer) birthDateYear.getValue(), (Integer) e.getProperty().getValue());
+//			birthDateYear.markAsDirty();
+//			birthDateDay.markAsDirty();
+//		});
+//		birthDateDay.addValueChangeListener(e -> {
+//			birthDateYear.markAsDirty();
+//			birthDateMonth.markAsDirty();
+//		});
 
 		ComboBox sex = addCustomField(PersonDto.SEX, Sex.class, ComboBox.class);
 		sex.setCaption(I18nProperties.getCaption(Captions.Person_sex));
@@ -237,16 +268,19 @@ public class ImmunizationCreationForm extends AbstractEditForm<ImmunizationDto> 
 		// Set initial visibilities & accesses
 		initializeVisibilitiesAndAllowedVisibilities();
 
-		setRequired(true, ImmunizationDto.REPORT_DATE, ImmunizationDto.MEANS_OF_IMMUNIZATION, ImmunizationDto.START_DATE);
+		setRequired(true, ImmunizationDto.REPORT_DATE, ImmunizationDto.MEANS_OF_IMMUNIZATION);
 
 		FieldHelper.setVisibleWhen(
 			getFieldGroup(),
-			Arrays.asList(ImmunizationDto.DISEASE_DETAILS),
+			Collections.singletonList(ImmunizationDto.DISEASE_DETAILS),
 			ImmunizationDto.DISEASE,
-			Arrays.asList(Disease.OTHER),
+			Collections.singletonList(Disease.OTHER),
 			true);
-		FieldHelper
-			.setRequiredWhen(getFieldGroup(), ImmunizationDto.DISEASE, Arrays.asList(ImmunizationDto.DISEASE_DETAILS), Arrays.asList(Disease.OTHER));
+		FieldHelper.setRequiredWhen(
+			getFieldGroup(),
+			ImmunizationDto.DISEASE,
+			Collections.singletonList(ImmunizationDto.DISEASE_DETAILS),
+			Collections.singletonList(Disease.OTHER));
 
 		FieldHelper.setVisibleWhen(
 			getFieldGroup(),
@@ -360,7 +394,22 @@ public class ImmunizationCreationForm extends AbstractEditForm<ImmunizationDto> 
 			updateFacilityFields(facilityCombo, facilityDetails);
 			this.getValue().setFacilityType((FacilityType) facilityType.getValue());
 		});
-
+		
+		FieldHelper.setRequiredWhenNotNull(getFieldGroup(), PersonDto.APPROXIMATE_AGE, PersonDto.APPROXIMATE_AGE_TYPE);
+		addFieldListeners(PersonDto.APPROXIMATE_AGE, e -> {
+			@SuppressWarnings("unchecked")
+			Field<ApproximateAgeType> ageTypeField = (Field<ApproximateAgeType>) getField(PersonDto.APPROXIMATE_AGE_TYPE);
+			if (!ageTypeField.isReadOnly()) {
+				if (e.getProperty().getValue() == null) {
+					ageTypeField.clear();
+				} else {
+					if (ageTypeField.isEmpty()) {
+						ageTypeField.setValue(ApproximateAgeType.YEARS);
+					}
+				}
+			}
+		});
+		
 		addValueChangeListener(e -> {
 			if (disease != null) {
 				setVisible(false, ImmunizationDto.DISEASE, ImmunizationDto.DISEASE_DETAILS);
@@ -376,9 +425,11 @@ public class ImmunizationCreationForm extends AbstractEditForm<ImmunizationDto> 
 					PersonDto.SEX,
 					PersonDto.NATIONAL_HEALTH_ID,
 					PersonDto.PASSPORT_NUMBER,
-					PersonDto.BIRTH_DATE_DD,
-					PersonDto.BIRTH_DATE_MM,
-					PersonDto.BIRTH_DATE_YYYY,
+					PersonDto.APPROXIMATE_AGE,
+					PersonDto.APPROXIMATE_AGE_TYPE,
+//					PersonDto.BIRTH_DATE_DD,
+//					PersonDto.BIRTH_DATE_MM,
+//					PersonDto.BIRTH_DATE_YYYY,
 					PersonDto.PRESENT_CONDITION,
 					PersonDto.PHONE,
 					PersonDto.EMAIL_ADDRESS);
@@ -389,9 +440,11 @@ public class ImmunizationCreationForm extends AbstractEditForm<ImmunizationDto> 
 					PersonDto.SEX,
 					PersonDto.NATIONAL_HEALTH_ID,
 					PersonDto.PASSPORT_NUMBER,
-					PersonDto.BIRTH_DATE_DD,
-					PersonDto.BIRTH_DATE_MM,
-					PersonDto.BIRTH_DATE_YYYY,
+					PersonDto.APPROXIMATE_AGE,
+					PersonDto.APPROXIMATE_AGE_TYPE,
+//					PersonDto.BIRTH_DATE_DD,
+//					PersonDto.BIRTH_DATE_MM,
+//					PersonDto.BIRTH_DATE_YYYY,
 					PersonDto.PRESENT_CONDITION,
 					PersonDto.PHONE,
 					PersonDto.EMAIL_ADDRESS);
@@ -458,9 +511,13 @@ public class ImmunizationCreationForm extends AbstractEditForm<ImmunizationDto> 
 
 		person.setFirstName((String) getField(PersonDto.FIRST_NAME).getValue());
 		person.setLastName((String) getField(PersonDto.LAST_NAME).getValue());
-		person.setBirthdateDD((Integer) getField(PersonDto.BIRTH_DATE_DD).getValue());
-		person.setBirthdateMM((Integer) getField(PersonDto.BIRTH_DATE_MM).getValue());
-		person.setBirthdateYYYY((Integer) getField(PersonDto.BIRTH_DATE_YYYY).getValue());
+
+		person.setApproximateAge((Integer) getField(PersonDto.APPROXIMATE_AGE).getValue());
+		person.setApproximateAgeType((ApproximateAgeType) getField(PersonDto.APPROXIMATE_AGE_TYPE).getValue());
+		person.setApproximateAgeReferenceDate((Date) getField(ImmunizationDto.REPORT_DATE).getValue());
+//		person.setBirthdateDD((Integer) getField(PersonDto.BIRTH_DATE_DD).getValue());
+//		person.setBirthdateMM((Integer) getField(PersonDto.BIRTH_DATE_MM).getValue());
+//		person.setBirthdateYYYY((Integer) getField(PersonDto.BIRTH_DATE_YYYY).getValue());
 		person.setSex((Sex) getField(PersonDto.SEX).getValue());
 		person.setPresentCondition((PresentCondition) getField(PersonDto.PRESENT_CONDITION).getValue());
 

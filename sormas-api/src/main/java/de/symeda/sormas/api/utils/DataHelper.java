@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
 
@@ -64,6 +65,10 @@ public final class DataHelper {
 		byte[] bytes = longToBytes(randomUuid.getLeastSignificantBits(), randomUuid.getMostSignificantBits());
 		String uuid = Base32.encode(bytes, 6);
 		return uuid;
+	}
+
+	public static String createConstantUuid(int seed) {
+		return new UUID(0, seed).toString();
 	}
 
 	public static boolean isSame(HasUuid left, HasUuid right) {
@@ -399,12 +404,10 @@ public final class DataHelper {
 				ageAndBirthDate.getAgeType(),
 				ageAndBirthDate.getDateOfBirthDD(),
 				ageAndBirthDate.getDateOfBirthMM(),
-				ageAndBirthDate.getDateOfBirthYYYY(),
-				userLanguage);
+				ageAndBirthDate.getDateOfBirthYYYY());
 		} else if (value instanceof BirthDateDto) {
 			BirthDateDto birthDate = (BirthDateDto) value;
-			return PersonHelper
-				.formatBirthdate(birthDate.getDateOfBirthDD(), birthDate.getDateOfBirthMM(), birthDate.getDateOfBirthYYYY(), userLanguage);
+			return DateFormatHelper.formatDate(birthDate.getDateOfBirthDD(), birthDate.getDateOfBirthMM(), birthDate.getDateOfBirthYYYY());
 		} else {
 			return value.toString();
 		}
