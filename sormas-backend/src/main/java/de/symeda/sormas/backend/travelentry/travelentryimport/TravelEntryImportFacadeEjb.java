@@ -139,9 +139,9 @@ public class TravelEntryImportFacadeEjb implements TravelEntryImportFacade {
 
 		PersonDto person = entities.getPerson();
 
-		if (personFacade.isPersonSimilarToExisting(person)) {
-			return ImportLineResultDto.duplicateResult(entities);
-		}
+//		if (personFacade.isPersonSimilarToExisting(person)) {
+//			return ImportLineResultDto.duplicateResult(entities);
+//		}
 
 		return saveImportedEntities(entities);
 	}

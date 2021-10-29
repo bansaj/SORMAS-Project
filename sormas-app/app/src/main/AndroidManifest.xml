@@ -442,28 +442,28 @@
              dispatching on non-Google Play devices
         -->
         <!--<receiver-->
-            <!--android:name="com.google.android.gms.analytics.AnalyticsReceiver"-->
-            <!--android:enabled="true">-->
-            <!--<intent-filter>-->
-                <!--<action android:name="com.google.android.gms.analytics.ANALYTICS_DISPATCH" />-->
-            <!--</intent-filter>-->
+        <!--android:name="com.google.android.gms.analytics.AnalyticsReceiver"-->
+        <!--android:enabled="true">-->
+        <!--<intent-filter>-->
+        <!--<action android:name="com.google.android.gms.analytics.ANALYTICS_DISPATCH" />-->
+        <!--</intent-filter>-->
         <!--</receiver>-->
 
         <!--<service-->
-            <!--android:name="com.google.android.gms.analytics.AnalyticsService"-->
-            <!--android:enabled="true"-->
-            <!--android:exported="false" />-->
+        <!--android:name="com.google.android.gms.analytics.AnalyticsService"-->
+        <!--android:enabled="true"-->
+        <!--android:exported="false" />-->
 
         <!--
              Optionally, register CampaignTrackingReceiver and CampaignTrackingService to enable
              installation campaign reporting
         -->
         <!--<receiver-->
-            <!--android:name="com.google.android.gms.analytics.CampaignTrackingReceiver"-->
-            <!--android:exported="true">-->
-            <!--<intent-filter>-->
-                <!--<action android:name="com.android.vending.INSTALL_REFERRER" />-->
-            <!--</intent-filter>-->
+        <!--android:name="com.google.android.gms.analytics.CampaignTrackingReceiver"-->
+        <!--android:exported="true">-->
+        <!--<intent-filter>-->
+        <!--<action android:name="com.android.vending.INSTALL_REFERRER" />-->
+        <!--</intent-filter>-->
         <!--</receiver>-->
 
         <provider
@@ -486,8 +486,8 @@
 
         <!--<service android:name="com.google.android.gms.analytics.CampaignTrackingService" />-->
         <!--<service-->
-            <!--android:name=".core.TaskNotificationService"-->
-            <!--android:enabled="true" />-->
+        <!--android:name=".core.TaskNotificationService"-->
+        <!--android:enabled="true" />-->
 
         <receiver
             android:name=".LbdsRecevierComponent"

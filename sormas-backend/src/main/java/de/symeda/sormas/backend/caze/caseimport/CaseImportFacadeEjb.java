@@ -150,9 +150,9 @@ public class CaseImportFacadeEjb implements CaseImportFacade {
 
 		PersonDto person = entities.getPerson();
 
-		if (personFacade.isPersonSimilarToExisting(person)) {
-			return ImportLineResultDto.duplicateResult(entities);
-		}
+//		if (personFacade.isPersonSimilarToExisting(person)) {
+//			return ImportLineResultDto.duplicateResult(entities);
+//		}
 
 		ImportLineResultDto<CaseImportEntities> result = saveImportedEntities(entities, false);
 

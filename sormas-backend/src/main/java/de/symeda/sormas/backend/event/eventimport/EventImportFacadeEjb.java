@@ -125,9 +125,9 @@ public class EventImportFacadeEjb implements EventImportFacade {
 		for (EventParticipantDto eventParticipant : entities.getEventParticipants()) {
 			PersonDto person = eventParticipant.getPerson();
 
-			if (personFacade.isPersonSimilarToExisting(person)) {
-				return ImportLineResultDto.duplicateResult(entities);
-			}
+//			if (personFacade.isPersonSimilarToExisting(person)) {
+//				return ImportLineResultDto.duplicateResult(entities);
+//			}
 		}
 
 		return saveImportedEntities(entities);
