@@ -22,7 +22,10 @@ import com.github.javafaker.Faker;
 import com.google.inject.Inject;
 import java.time.LocalDate;
 import java.util.UUID;
-import org.sormas.e2etests.pojo.Case;
+import org.sormas.e2etests.enums.DiseasesValues;
+import org.sormas.e2etests.enums.DistrictsValues;
+import org.sormas.e2etests.enums.RegionsValues;
+import org.sormas.e2etests.pojo.web.Case;
 
 public class CaseService {
   private final Faker faker;
@@ -35,10 +38,10 @@ public class CaseService {
   public Case buildGeneratedCase() {
     return Case.builder()
         .caseOrigin("IN-COUNTRY")
-        .dateOfReport(LocalDate.now())
+        .dateOfReport(LocalDate.now().minusDays(1))
         .externalId(UUID.randomUUID().toString())
         .disease("COVID-19")
-        .responsibleRegion("Voreingestellte Bundesländer")
+        .responsibleRegion("Voreingestellte Bundesl\u00E4nder")
         .responsibleDistrict("Voreingestellter Landkreis")
         .responsibleCommunity("Voreingestellte Gemeinde")
         .placeOfStay("HOME")
@@ -53,6 +56,65 @@ public class CaseService {
         .dateOfSymptomOnset(LocalDate.now().minusDays(1))
         .primaryPhoneNumber(faker.phoneNumber().phoneNumber())
         .primaryEmailAddress(faker.internet().emailAddress())
+        .build();
+  }
+
+  public Case buildEditGeneratedCase() {
+    return Case.builder()
+        .dateOfReport(LocalDate.now().minusDays(3))
+        .caseClassification("Confirmed case with unknown symptoms")
+        .clinicalConfirmation("Yes")
+        .epidemiologicalConfirmation("Yes")
+        .laboratoryDiagnosticConfirmation("Yes")
+        .investigationStatus("INVESTIGATION DONE")
+        .caseOrigin("IN-COUNTRY")
+        .externalId(UUID.randomUUID().toString())
+        .externalToken(UUID.randomUUID().toString())
+        .disease("COVID-19")
+        .reinfection("NO")
+        .outcomeOfCase("RECOVERED")
+        .reportingDistrict("Voreingestellter Landkreis")
+        .caseIdentificationSource("Suspicion report")
+        .region(RegionsValues.VoreingestellteBundeslander.getName())
+        .district(DistrictsValues.VoreingestellterLandkreis.getName())
+        .community("Voreingestellte Gemeinde")
+        .responsibleDistrict(DistrictsValues.VoreingestellterLandkreis.getName())
+        .responsibleCommunity("Voreingestellte Gemeinde")
+        .responsibleRegion(RegionsValues.VoreingestellteBundeslander.getName())
+        .prohibitionToWork("NO")
+        .homeBasedQuarantinePossible("NO")
+        .quarantine("None")
+        .reportGpsLatitude("21")
+        .reportGpsLongitude("21")
+        .reportGpsAccuracyInM("21")
+        .sequelae("NO")
+        .bloodOrganTissueDonationInTheLast6Months("NO")
+        .vaccinationStatusForThisDisease("Unvaccinated")
+        .responsibleSurveillanceOfficer("Surveillance OFFICER - Surveillance Officer")
+        .dateReceivedAtDistrictLevel(LocalDate.now().minusDays(1))
+        .dateReceivedAtRegionLevel(LocalDate.now().minusDays(2))
+        .dateReceivedAtNationalLevel(LocalDate.now().minusDays(3))
+        .dateReceivedAtNationalLevel(LocalDate.now().minusDays(3))
+        .generalComment(faker.book().title())
+        .placeDescription(faker.business().creditCardExpiry())
+        .build();
+  }
+
+  public Case buildCaseForLineListingFeature() {
+    return Case.builder()
+        .disease(DiseasesValues.MONKEYPOX.getDiseaseCaption())
+        .region("Voreingestellte")
+        .district("Voreingestellter Landkreis")
+        .facilityCategory("Accommodation")
+        .facilityType("Other Accommodation")
+        .dateOfReport(LocalDate.now().minusDays(1))
+        .community("Voreingestellte Gemeinde")
+        .placeDescription(faker.address().streetAddressNumber()) // used for Facility Name
+        .firstName(faker.name().firstName())
+        .lastName(faker.name().lastName() + LocalDate.now())
+        .dateOfBirth(LocalDate.of(1902, 3, 7))
+        .sex("Male")
+        .dateOfSymptomOnset(LocalDate.now().minusDays(1))
         .build();
   }
 }

@@ -17,6 +17,9 @@ package de.symeda.sormas.app.util;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+
+import org.apache.commons.collections4.CollectionUtils;
 
 import de.symeda.sormas.api.Month;
 import de.symeda.sormas.api.i18n.I18nProperties;
@@ -52,7 +55,7 @@ public class DataUtils {
 			list.add(new Item<E>("", null));
 		}
 
-		for (E enumConstant: enumConstants) {
+		for (E enumConstant : enumConstants) {
 			boolean visible = true;
 			if (checkers != null) {
 				visible = checkers.isVisible(clazz, enumConstant.name());
@@ -126,13 +129,6 @@ public class DataUtils {
 		return items;
 	}
 
-	public static <E> List<Item> addItems(List<Item> items, List<E> listIn) {
-		for (E listInEntry : listIn) {
-			items.add(new Item<E>(listInEntry.toString(), listInEntry));
-		}
-		return items;
-	}
-
 	public static void updateListOfDays(ControlSpinnerField birthdateDD, Integer selectedYear, Integer selectedMonth) {
 		Integer currentlySelected = (Integer) birthdateDD.getValue();
 		List<Item> days = DataUtils.toItems(DateHelper.getDaysInMonth(selectedMonth, selectedYear));
@@ -140,5 +136,13 @@ public class DataUtils {
 		if (currentlySelected != null) {
 			birthdateDD.setValue(currentlySelected);
 		}
+	}
+
+	public static <T> T getRandomCandidate(List<T> candidates) {
+		if (CollectionUtils.isEmpty(candidates)) {
+			return null;
+		}
+
+		return candidates.get(new Random().nextInt(candidates.size()));
 	}
 }

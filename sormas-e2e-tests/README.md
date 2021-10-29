@@ -33,19 +33,19 @@ issues that might block successful web development.
     ```text
     1. https://sdkman.io/install
     2. sdk install java 11.0.11-zulu
-  OR 
+  OR
   Download the java zulu 11 from https://www.azul.com/downloads/zulu-community/?package=jdk
     ```
 
 * Install Gradle
-* Install Allure(To check this run `allure serve` from Intellij command line)
+* Install Allure(To check this run `allure serve` from IntelliJ command line)
 * Install IntelliJ IDEA please follow the steps [here](https://www.jetbrains.com/idea/)
 * Launch IntelliJ IDEA and click on `Import project`
 
-  ![config](./images/sc1.png)  
+  ![config](./images/sc1.png)
 
 * As a new window is opened select `build.gradle`  in the project directory and
-  click `Open`  
+  click `Open`
   Alternatively go to IDea Preferences and search for `gradle`
 
   ![config](./images/sc2.png)
@@ -73,7 +73,7 @@ can be taken as a base for living documentation and executable specification.
 
 ```gherkin
   Scenario: Create a new event
-Given I log in with the user
+Given I log in with National User
 And I click on the Events button from navbar
 When I click on the NEW EVENT button
 Then I create a new event

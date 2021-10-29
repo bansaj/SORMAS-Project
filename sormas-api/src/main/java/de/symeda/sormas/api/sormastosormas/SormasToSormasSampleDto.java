@@ -15,38 +15,32 @@
 
 package de.symeda.sormas.api.sormastosormas;
 
-import java.io.Serializable;
 import java.util.List;
+
+import javax.validation.Valid;
 
 import de.symeda.sormas.api.sample.AdditionalTestDto;
 import de.symeda.sormas.api.sample.PathogenTestDto;
 import de.symeda.sormas.api.sample.SampleDto;
 
-public class SormasToSormasSampleDto implements Serializable {
+public class SormasToSormasSampleDto extends SormasToSormasEntityDto<SampleDto> {
 
 	private static final long serialVersionUID = 5867733293483599601L;
 
-	private SampleDto sample;
-
+	@Valid
 	private List<PathogenTestDto> pathogenTests;
 
+	@Valid
 	private List<AdditionalTestDto> additionalTests;
 
 	public SormasToSormasSampleDto() {
 	}
 
 	public SormasToSormasSampleDto(SampleDto sample, List<PathogenTestDto> pathogenTests, List<AdditionalTestDto> additionalTests) {
-		this.sample = sample;
+		super(sample);
+
 		this.pathogenTests = pathogenTests;
 		this.additionalTests = additionalTests;
-	}
-
-	public SampleDto getSample() {
-		return sample;
-	}
-
-	public void setSample(SampleDto sample) {
-		this.sample = sample;
 	}
 
 	public List<PathogenTestDto> getPathogenTests() {

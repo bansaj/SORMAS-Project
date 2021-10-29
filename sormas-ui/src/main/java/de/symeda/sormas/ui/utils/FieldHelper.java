@@ -20,8 +20,10 @@ package de.symeda.sormas.ui.utils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.function.Function;
@@ -40,7 +42,11 @@ import com.vaadin.v7.ui.AbstractSelect;
 import com.vaadin.v7.ui.Field;
 
 import de.symeda.sormas.api.Disease;
+import de.symeda.sormas.api.FacadeProvider;
+import de.symeda.sormas.api.caze.CaseDataDto;
+import de.symeda.sormas.api.infrastructure.district.DistrictReferenceDto;
 import de.symeda.sormas.api.symptoms.SymptomsDto;
+import de.symeda.sormas.api.user.UserRole;
 import de.symeda.sormas.api.utils.Diseases;
 import de.symeda.sormas.api.utils.fieldvisibility.FieldVisibilityCheckers;
 
@@ -238,7 +244,7 @@ public final class FieldHelper {
 
 	@SuppressWarnings("rawtypes")
 	public static void setVisibleWhen(
-		Field sourceField,
+		Field sourceField, 
 		List<? extends Field<?>> targetFields,
 		Function<Field, Boolean> isVisibleFunction,
 		boolean clearOnHidden) {
@@ -459,6 +465,55 @@ public final class FieldHelper {
 		}
 	}
 
+	public static <T> void setValueWhen(
+			FieldGroup fieldGroup,
+			String sourceFieldId,
+			Object sourceValue,
+			String targetPropertyId,
+			T targetValue
+	) {
+		final Field<?> sourceField = fieldGroup.getField(sourceFieldId);
+		final List<Object> sourceValues = Collections.singletonList(sourceValue);
+		final Field<T> targetFields = (Field<T>) fieldGroup.getField(targetPropertyId);
+
+		setValueWhen(sourceField, sourceValues, targetFields, targetValue);
+	}
+
+	public static <T> void setValueWhen(Field<?> sourceField, final List<?> sourceValues, Field<T> targetField,
+									  T targetValue) {
+
+		if (sourceField instanceof AbstractField<?>) {
+			((AbstractField<?>) sourceField).setImmediate(true);
+		}
+
+		// initialize
+		{
+			if (sourceValues.contains(getNullableSourceFieldValue(sourceField))) {
+				targetField.setValue(targetValue);
+			}
+		}
+
+		sourceField.addValueChangeListener(event -> {
+			if(sourceValues.contains(getNullableSourceFieldValue(((Field) event.getProperty())))) {
+				targetField.setValue(targetValue);
+			}
+		});
+	}
+
+	public static void setEnabledWhen(
+		FieldGroup fieldGroup,
+		String sourceFieldId,
+		Object sourceValue,
+		String targetPropertyId,
+		boolean clearOnDisabled) {
+
+		final Field<?> sourceField = fieldGroup.getField(sourceFieldId);
+		final List<Object> sourceValues = Collections.singletonList(sourceValue);
+		final List<Field<?>> targetFields = Collections.singletonList(fieldGroup.getField(targetPropertyId));
+
+		setEnabledWhen(sourceField, sourceValues, targetFields, clearOnDisabled);
+	}
+	
 	/**
 	 * Sets the target fields to enabled when the source field has a value that's
 	 * contained in the sourceValues list.
@@ -709,5 +764,14 @@ public final class FieldHelper {
 		} else {
 			return sourceField.getValue();
 		}
+	}
+
+	public static void updateOfficersField(AbstractSelect officerField, CaseDataDto caze, UserRole role) {
+		List<DistrictReferenceDto> officerDistricts =
+			Stream.of(caze.getResponsibleDistrict(), caze.getDistrict()).filter(Objects::nonNull).collect(Collectors.toList());
+		FieldHelper.updateItems(
+			officerField,
+			officerDistricts.size() > 0 ? FacadeProvider.getUserFacade().getUserRefsByDistricts(officerDistricts, false, role) : null);
+
 	}
 }

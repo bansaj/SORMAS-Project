@@ -32,8 +32,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
+
+import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.base.CharMatcher;
 
@@ -43,6 +46,7 @@ import de.symeda.sormas.api.Language;
 import de.symeda.sormas.api.caze.AgeAndBirthDateDto;
 import de.symeda.sormas.api.caze.BirthDateDto;
 import de.symeda.sormas.api.caze.BurialInfoDto;
+import de.symeda.sormas.api.disease.DiseaseVariant;
 import de.symeda.sormas.api.i18n.I18nProperties;
 import de.symeda.sormas.api.i18n.Strings;
 import de.symeda.sormas.api.person.PersonHelper;
@@ -61,6 +65,10 @@ public final class DataHelper {
 		byte[] bytes = longToBytes(randomUuid.getLeastSignificantBits(), randomUuid.getMostSignificantBits());
 		String uuid = Base32.encode(bytes, 6);
 		return uuid;
+	}
+
+	public static String createConstantUuid(int seed) {
+		return new UUID(0, seed).toString();
 	}
 
 	public static boolean isSame(HasUuid left, HasUuid right) {
@@ -147,7 +155,8 @@ public final class DataHelper {
 			|| type == Byte.class
 			|| type == Boolean.class
 			|| type == String.class
-			|| type == Date.class;
+			|| type == Date.class
+			|| type.isAssignableFrom(DiseaseVariant.class);
 	}
 
 	public static byte[] longToBytes(long x, long y) {
@@ -393,13 +402,12 @@ public final class DataHelper {
 			return PersonHelper.getAgeAndBirthdateString(
 				ageAndBirthDate.getAge(),
 				ageAndBirthDate.getAgeType(),
-				ageAndBirthDate.getBirthdateDD(),
-				ageAndBirthDate.getBirthdateMM(),
-				ageAndBirthDate.getBirthdateYYYY(),
-				userLanguage);
+				ageAndBirthDate.getDateOfBirthDD(),
+				ageAndBirthDate.getDateOfBirthMM(),
+				ageAndBirthDate.getDateOfBirthYYYY());
 		} else if (value instanceof BirthDateDto) {
 			BirthDateDto birthDate = (BirthDateDto) value;
-			return PersonHelper.formatBirthdate(birthDate.getBirthdateDD(), birthDate.getBirthdateMM(), birthDate.getBirthdateYYYY(), userLanguage);
+			return DateFormatHelper.formatDate(birthDate.getDateOfBirthDD(), birthDate.getDateOfBirthMM(), birthDate.getDateOfBirthYYYY());
 		} else {
 			return value.toString();
 		}
@@ -420,5 +428,24 @@ public final class DataHelper {
 		}
 
 		return Collections.singletonList(object);
+	}
+
+	public static String joinStrings(String separator, String... strings) {
+		List<String> notEmptyValues = new ArrayList<>();
+		for (String string : strings) {
+			if (!StringUtils.isBlank(string)) {
+				notEmptyValues.add(string);
+			}
+		}
+
+		return StringUtils.join(notEmptyValues, separator);
+	}
+
+	public static String getEmailValidationRegex() {
+		return "^([a-zA-Z0-9_\\.\\-+])+@[a-zA-Z0-9-.]+\\.[a-zA-Z0-9-]{2,}$";
+	}
+
+	public static String getPhoneNumberValidationRegex() {
+		return ".*[a-zA-Z].*";
 	}
 }

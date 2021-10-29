@@ -17,13 +17,11 @@
  *******************************************************************************/
 package de.symeda.sormas.ui.samples;
 
-import static de.symeda.sormas.ui.samples.PathogenTestController.showCaseUpdateWithNewDiseaseVariantDialog;
-
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -47,22 +45,20 @@ import com.vaadin.v7.data.Buffered.SourceException;
 import com.vaadin.v7.data.Validator.InvalidValueException;
 import com.vaadin.v7.ui.CheckBox;
 import com.vaadin.v7.ui.DateField;
+import com.vaadin.v7.ui.TextField;
 
 import de.symeda.sormas.api.Disease;
 import de.symeda.sormas.api.FacadeProvider;
-import de.symeda.sormas.api.caze.CaseClassification;
-import de.symeda.sormas.api.caze.CaseDataDto;
 import de.symeda.sormas.api.caze.CaseReferenceDto;
 import de.symeda.sormas.api.contact.ContactReferenceDto;
 import de.symeda.sormas.api.disease.DiseaseVariant;
-import de.symeda.sormas.api.event.EventDto;
 import de.symeda.sormas.api.event.EventParticipantDto;
 import de.symeda.sormas.api.event.EventParticipantReferenceDto;
-import de.symeda.sormas.api.facility.FacilityReferenceDto;
 import de.symeda.sormas.api.i18n.Captions;
 import de.symeda.sormas.api.i18n.I18nProperties;
 import de.symeda.sormas.api.i18n.Strings;
 import de.symeda.sormas.api.i18n.Validations;
+import de.symeda.sormas.api.infrastructure.facility.FacilityReferenceDto;
 import de.symeda.sormas.api.sample.PCRTestSpecification;
 import de.symeda.sormas.api.sample.PathogenTestDto;
 import de.symeda.sormas.api.sample.PathogenTestResultType;
@@ -84,9 +80,9 @@ import de.symeda.sormas.ui.utils.ButtonHelper;
 import de.symeda.sormas.ui.utils.CommitDiscardWrapperComponent;
 import de.symeda.sormas.ui.utils.CommitDiscardWrapperComponent.DiscardListener;
 import de.symeda.sormas.ui.utils.ConfirmationComponent;
-import de.symeda.sormas.ui.utils.CssStyles;
 import de.symeda.sormas.ui.utils.DateFormatHelper;
 import de.symeda.sormas.ui.utils.VaadinUiUtil;
+import de.symeda.sormas.ui.utils.components.page.title.TitleLayout;
 
 public class SampleController {
 
@@ -222,6 +218,16 @@ public class SampleController {
 				pathogenTest.setViaLims(viaLimsField.getValue());
 			}
 
+			TextField externalIdField = createForm.getField(PathogenTestDto.EXTERNAL_ID);
+			if (externalIdField != null) {
+				pathogenTest.setExternalId(externalIdField.getValue());
+			}
+
+			TextField externalOrderIdField = createForm.getField(PathogenTestDto.EXTERNAL_ORDER_ID);
+			if (externalOrderIdField != null) {
+				pathogenTest.setExternalOrderId(externalOrderIdField.getValue());
+			}
+
 			String cqValue = (String) createForm.getField(PathogenTestDto.CQ_VALUE).getValue();
 			if (cqValue != null && !StringUtils.isBlank(cqValue)) {
 				cqValue = cqValue.replaceAll(",", "."); // Replace , with . to make sure that the value can be parsed
@@ -236,64 +242,14 @@ public class SampleController {
 			}
 			pathogenTest.setTypingId((String) createForm.getField(PathogenTestDto.TYPING_ID).getValue());
 
-			// set sample test result to pending first
-			newSample.setPathogenTestResult(PathogenTestResultType.PENDING);
-
 			SampleDto savedSample = FacadeProvider.getSampleFacade().saveSample(newSample);
-			PathogenTestDto savedPathogenTest = FacadeProvider.getPathogenTestFacade().savePathogenTest(pathogenTest);
 
-			final CaseReferenceDto associatedCase = newSample.getAssociatedCase();
-
-			// Handle test results
-			if (associatedCase != null && pathogenTest.getTestResultVerified()) {
-				CaseDataDto postSaveCaseDto = FacadeProvider.getCaseFacade().getCaseDataByUuid(associatedCase.getUuid());
-
-				if (postSaveCaseDto.getDisease() == pathogenTest.getTestedDisease()
-					&& DataHelper.equal(postSaveCaseDto.getDiseaseVariant(), pathogenTest.getTestedDiseaseVariant())) {
-
-					// Handle test results for the same disease & variant
-					savedSample.setPathogenTestResult(pathogenTest.getTestResult());
-					savedSample = FacadeProvider.getSampleFacade().saveSample(savedSample);
-				} else if (pathogenTest.getTestResult() == PathogenTestResultType.POSITIVE
-					&& postSaveCaseDto.getDisease() != pathogenTest.getTestedDisease()) {
-
-					// Handle positive test results for different diseases
-					// please note, that for the cloned case, the sample will still be set to Pending
-					PathogenTestController.showCaseCloningWithNewDiseaseDialog(postSaveCaseDto, pathogenTest.getTestedDisease());
-				} else if (pathogenTest.getTestResult() == PathogenTestResultType.POSITIVE
-					&& !DataHelper.equal(postSaveCaseDto.getDiseaseVariant(), pathogenTest.getTestedDiseaseVariant())) {
-
-					// Handle positive test results for different disease variants
-					showCaseUpdateWithNewDiseaseVariantDialog(postSaveCaseDto, pathogenTest.getTestedDiseaseVariant());
-				}
-				if (savedPathogenTest.getTestResult() != savedSample.getPathogenTestResult()) {
-					showChangePathogenTestResultWindow(createView, savedSample.getUuid(), savedPathogenTest.getTestResult(), () -> {
-					});
-				}
-				if (savedPathogenTest.getTestedDisease() == postSaveCaseDto.getDisease()
-					&& PathogenTestResultType.POSITIVE.equals(savedPathogenTest.getTestResult())
-					&& savedPathogenTest.getTestResultVerified()
-					&& postSaveCaseDto.getCaseClassification() != CaseClassification.CONFIRMED
-					&& postSaveCaseDto.getCaseClassification() != CaseClassification.NO_CASE) {
-					ControllerProvider.getPathogenTestController().showConfirmCaseDialog(postSaveCaseDto);
-				}
-			}
+			// save the pathogenTest. The pathogenTestController will handle any further stuff like creating new cases, updating sample result...
+			// Do not start a separate implementation here, as saving sample & pathogenTest in one go should be identical to doing it in two steps!
+			PathogenTestDto savedPathogenTest = ControllerProvider.getPathogenTestController().savePathogenTest(pathogenTest, null);
 
 			consumer.accept(savedSample, savedPathogenTest);
-			final EventParticipantReferenceDto eventParticipantRef = savedSample.getAssociatedEventParticipant();
-			if (eventParticipantRef != null) {
-				EventParticipantDto eventParticipant =
-					FacadeProvider.getEventParticipantFacade().getEventParticipantByUuid(eventParticipantRef.getUuid());
-				final EventDto event = FacadeProvider.getEventFacade().getEventByUuid(eventParticipant.getEvent().getUuid());
-				Disease testedDisease = pathogenTest.getTestedDisease();
-				if (Objects.equals(event.getDisease(), testedDisease)) {
-					savedSample.setPathogenTestResult(testResult);
-					FacadeProvider.getSampleFacade().saveSample(savedSample);
-				}
-				if (testResult.equals(PathogenTestResultType.POSITIVE) && testResultVerified) {
-					ControllerProvider.getPathogenTestController().showConvertEventParticipantToCaseDialog(eventParticipant, testedDisease);
-				}
-			}
+
 		} else {
 			SampleDto savedSample = FacadeProvider.getSampleFacade().saveSample(newSample);
 			consumer.accept(savedSample, null);
@@ -382,9 +338,9 @@ public class SampleController {
 			editView.getButtonsPanel().setComponentAlignment(referOrLinkToOtherLabButton, Alignment.BOTTOM_LEFT);
 		}
 
-		editView.getWrappedComponent()
-			.getField(SampleDto.SAMPLE_PURPOSE)
-			.setEnabled(dto.getReferredTo() == null || dto.getSamplePurpose() != SamplePurpose.EXTERNAL);
+		if (dto.getReferredTo() != null || dto.getSamplePurpose() == SamplePurpose.EXTERNAL) {
+			editView.getWrappedComponent().getField(SampleDto.SAMPLE_PURPOSE).setEnabled(false);
+		}
 
 		return editView;
 	}
@@ -435,7 +391,7 @@ public class SampleController {
 		CommitDiscardWrapperComponent<? extends AbstractSampleForm> editComponent,
 		String sampleUuid,
 		PathogenTestResultType newResult,
-		Runnable callback) {
+		Consumer<Boolean> callback) {
 
 		VerticalLayout layout = new VerticalLayout();
 		layout.setMargin(true);
@@ -459,7 +415,7 @@ public class SampleController {
 
 			@Override
 			public void buttonClick(ClickEvent event) {
-				if (!SampleCreateForm.class.equals(editComponent.getWrappedComponent().getClass())) {
+				if (editComponent != null && !SampleCreateForm.class.equals(editComponent.getWrappedComponent().getClass())) {
 					editComponent.commit();
 				}
 				SampleDto sample = FacadeProvider.getSampleFacade().getSampleByUuid(sampleUuid);
@@ -467,7 +423,7 @@ public class SampleController {
 				FacadeProvider.getSampleFacade().saveSample(sample);
 				popupWindow.close();
 				SormasUI.refreshView();
-				callback.run();
+				callback.accept(true);
 			}
 		});
 		confirmationComponent.getCancelButton().addClickListener(new ClickListener() {
@@ -477,7 +433,7 @@ public class SampleController {
 			@Override
 			public void buttonClick(ClickEvent event) {
 				popupWindow.close();
-				callback.run();
+				callback.accept(false);
 			}
 		});
 	}
@@ -505,28 +461,19 @@ public class SampleController {
 		}
 	}
 
-	public VerticalLayout getSampleViewTitleLayout(SampleDto sample) {
+	public TitleLayout getSampleViewTitleLayout(SampleDto sample) {
 
-		VerticalLayout titleLayout = new VerticalLayout();
-		titleLayout.addStyleNames(CssStyles.LAYOUT_MINIMAL, CssStyles.VSPACE_4, CssStyles.VSPACE_TOP_4);
-		titleLayout.setSpacing(false);
+		TitleLayout titleLayout = new TitleLayout();
 
-		Label uuidLabel = new Label(DataHelper.getShortUuid(sample.getUuid()));
-		uuidLabel.addStyleNames(CssStyles.H3, CssStyles.VSPACE_NONE, CssStyles.VSPACE_TOP_NONE);
-		titleLayout.addComponent(uuidLabel);
+		titleLayout.addRow(DataHelper.getShortUuid(sample.getUuid()));
+		titleLayout.addRow(DateFormatHelper.formatDate(sample.getSampleDateTime()));
 
-		Label sampleDateLabel = new Label(DateFormatHelper.formatDate(sample.getSampleDateTime()));
-		sampleDateLabel.addStyleNames(CssStyles.H3, CssStyles.VSPACE_NONE, CssStyles.VSPACE_TOP_NONE);
-		titleLayout.addComponent(sampleDateLabel);
-
-		Label sampleCaptionLabel = new Label(
-			SampleReferenceDto.buildCaption(
-				sample.getSampleMaterial(),
-				sample.getAssociatedCase() != null ? sample.getAssociatedCase().getUuid() : null,
-				sample.getAssociatedContact() != null ? sample.getAssociatedContact().getUuid() : null,
-				sample.getAssociatedEventParticipant() != null ? sample.getAssociatedEventParticipant().getUuid() : null));
-		sampleCaptionLabel.addStyleNames(CssStyles.H2, CssStyles.VSPACE_NONE, CssStyles.VSPACE_TOP_NONE, CssStyles.LABEL_PRIMARY);
-		titleLayout.addComponents(sampleCaptionLabel);
+		String mainRowText = SampleReferenceDto.buildCaption(
+			sample.getSampleMaterial(),
+			sample.getAssociatedCase() != null ? sample.getAssociatedCase().getUuid() : null,
+			sample.getAssociatedContact() != null ? sample.getAssociatedContact().getUuid() : null,
+			sample.getAssociatedEventParticipant() != null ? sample.getAssociatedEventParticipant().getUuid() : null);
+		titleLayout.addMainRow(mainRowText);
 
 		return titleLayout;
 	}

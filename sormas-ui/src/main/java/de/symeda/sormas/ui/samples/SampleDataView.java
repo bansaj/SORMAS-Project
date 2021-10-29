@@ -1,20 +1,17 @@
-/*******************************************************************************
+/*
  * SORMAS® - Surveillance Outbreak Response Management & Analysis System
- * Copyright © 2016-2018 Helmholtz-Zentrum für Infektionsforschung GmbH (HZI)
- *
+ * Copyright © 2016-2021 Helmholtz-Zentrum für Infektionsforschung GmbH (HZI)
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
- *******************************************************************************/
+ */
 package de.symeda.sormas.ui.samples;
 
 import java.util.function.BiConsumer;
@@ -33,6 +30,7 @@ import de.symeda.sormas.api.contact.ContactReferenceDto;
 import de.symeda.sormas.api.event.EventDto;
 import de.symeda.sormas.api.event.EventParticipantDto;
 import de.symeda.sormas.api.event.EventParticipantReferenceDto;
+import de.symeda.sormas.api.feature.FeatureType;
 import de.symeda.sormas.api.sample.PathogenTestDto;
 import de.symeda.sormas.api.sample.SampleDto;
 import de.symeda.sormas.api.user.UserRight;
@@ -121,8 +119,7 @@ public class SampleDataView extends AbstractSampleView {
 		if (associatedEventParticipant != null) {
 			final EventParticipantDto eventParticipantDto =
 				FacadeProvider.getEventParticipantFacade().getEventParticipantByUuid(associatedEventParticipant.getUuid());
-			final EventDto eventDto = FacadeProvider.getEventFacade().getEventByUuid(eventParticipantDto.getEvent().getUuid());
-			boolean isInJurisdiction = FacadeProvider.getEventFacade().isEventEditAllowed(eventDto.getUuid());
+			final EventDto eventDto = FacadeProvider.getEventFacade().getEventByUuid(eventParticipantDto.getEvent().getUuid(), false);
 
 			disease = eventDto.getDisease();
 
@@ -142,24 +139,8 @@ public class SampleDataView extends AbstractSampleView {
 		editComponent.addStyleName(CssStyles.MAIN_COMPONENT);
 		layout.addComponent(editComponent, EDIT_LOC);
 
-		Disease finalDisease = disease;
 		BiConsumer<PathogenTestDto, Runnable> onSavedPathogenTest = (pathogenTestDto, callback) -> {
-			if (pathogenTestDto != null
-				&& pathogenTestDto.getTestResult() != null
-				&& Boolean.TRUE.equals(pathogenTestDto.getTestResultVerified())
-				&& pathogenTestDto.getTestedDisease() == finalDisease) {
-				SampleDto componentSample = editComponent.getWrappedComponent().getValue();
-				if (pathogenTestDto.getTestResult() != componentSample.getPathogenTestResult()) {
-					ControllerProvider.getSampleController()
-						.showChangePathogenTestResultWindow(editComponent, componentSample.getUuid(), pathogenTestDto.getTestResult(), callback);
-				} else {
-					callback.run();
-				}
-			} else {
-				callback.run();
-			}
-
-			editComponent.getWrappedComponent().fillPathogenTestResult();
+			callback.run();
 		};
 
 		// why? if(sampleDto.getSamplePurpose() !=null && sampleDto.getSamplePurpose().equals(SamplePurpose.EXTERNAL)) {
@@ -168,13 +149,16 @@ public class SampleDataView extends AbstractSampleView {
 		pathogenTestList.addStyleName(CssStyles.SIDE_COMPONENT);
 		layout.addComponent(pathogenTestList, PATHOGEN_TESTS_LOC);
 
-		if (UserProvider.getCurrent().hasUserRight(UserRight.ADDITIONAL_TEST_VIEW)) {
+		if (UserProvider.getCurrent() != null
+			&& UserProvider.getCurrent().hasUserRight(UserRight.ADDITIONAL_TEST_VIEW)
+			&& FacadeProvider.getFeatureConfigurationFacade().isFeatureEnabled(FeatureType.ADDITIONAL_TESTS)) {
+
 			AdditionalTestListComponent additionalTestList = new AdditionalTestListComponent(getSampleRef().getUuid());
 			additionalTestList.addStyleName(CssStyles.SIDE_COMPONENT);
 			layout.addComponent(additionalTestList, ADDITIONAL_TESTS_LOC);
 		}
 
-		boolean sormasToSormasEnabled = FacadeProvider.getSormasToSormasFacade().isFeatureEnabled();
+		boolean sormasToSormasEnabled = FacadeProvider.getSormasToSormasFacade().isSharingCasesContactsAndSamplesEnabledForUser();
 		if (sormasToSormasEnabled || sampleDto.getSormasToSormasOriginInfo() != null) {
 			VerticalLayout sormasToSormasLocLayout = new VerticalLayout();
 			sormasToSormasLocLayout.setMargin(false);

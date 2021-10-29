@@ -38,10 +38,10 @@ import de.symeda.sormas.api.Disease;
 import de.symeda.sormas.api.FacadeProvider;
 import de.symeda.sormas.api.customizableenum.CustomizableEnumType;
 import de.symeda.sormas.api.disease.DiseaseVariant;
-import de.symeda.sormas.api.facility.FacilityDto;
-import de.symeda.sormas.api.facility.FacilityReferenceDto;
 import de.symeda.sormas.api.i18n.I18nProperties;
 import de.symeda.sormas.api.i18n.Validations;
+import de.symeda.sormas.api.infrastructure.facility.FacilityDto;
+import de.symeda.sormas.api.infrastructure.facility.FacilityReferenceDto;
 import de.symeda.sormas.api.sample.PathogenTestDto;
 import de.symeda.sormas.api.sample.PathogenTestResultType;
 import de.symeda.sormas.api.sample.PathogenTestType;
@@ -64,10 +64,12 @@ public class PathogenTestForm extends AbstractEditForm<PathogenTestDto> {
 	//@formatter:off
 	private static final String HTML_LAYOUT = 
 			fluidRowLocs(PathogenTestDto.REPORT_DATE, PathogenTestDto.VIA_LIMS) +
-			fluidRowLocs(PathogenTestDto.TEST_TYPE, PathogenTestDto.PCR_TEST_SPECIFICATION) +
-			fluidRowLocs(PathogenTestDto.TESTED_DISEASE, PathogenTestDto.TESTED_DISEASE_VARIANT) +
-			fluidRowLocs("", PathogenTestDto.TYPING_ID) +
-			fluidRowLocs(PathogenTestDto.TEST_TYPE_TEXT, PathogenTestDto.TESTED_DISEASE_DETAILS) +
+			fluidRowLocs(PathogenTestDto.EXTERNAL_ID, PathogenTestDto.EXTERNAL_ORDER_ID) +
+			fluidRowLocs(PathogenTestDto.TEST_TYPE, PathogenTestDto.TEST_TYPE_TEXT) +
+			fluidRowLocs(PathogenTestDto.PCR_TEST_SPECIFICATION, "") +
+			fluidRowLocs(PathogenTestDto.TESTED_DISEASE, PathogenTestDto.TESTED_DISEASE_DETAILS) +
+			fluidRowLocs(PathogenTestDto.TESTED_DISEASE_VARIANT, PathogenTestDto.TESTED_DISEASE_VARIANT_DETAILS) +
+			fluidRowLocs(PathogenTestDto.TYPING_ID, "") +
 			fluidRowLocs(PathogenTestDto.TEST_DATE_TIME, PathogenTestDto.LAB) +
 			fluidRowLocs("", PathogenTestDto.LAB_DETAILS) +
 			fluidRowLocs(PathogenTestDto.TEST_RESULT, PathogenTestDto.TEST_RESULT_VERIFIED) +
@@ -78,7 +80,8 @@ public class PathogenTestForm extends AbstractEditForm<PathogenTestDto> {
 	//@formatter:on
 
 	private final SampleDto sample;
-	private int caseSampleCount;
+	private final int caseSampleCount;
+	private final boolean create;
 
 	public PathogenTestForm(SampleDto sample, boolean create, int caseSampleCount, boolean isPseudonymized) {
 		super(
@@ -90,6 +93,7 @@ public class PathogenTestForm extends AbstractEditForm<PathogenTestDto> {
 
 		this.sample = sample;
 		this.caseSampleCount = caseSampleCount;
+		this.create = create;
 		setWidth(600, Unit.PIXELS);
 
 		addFields();
@@ -106,6 +110,8 @@ public class PathogenTestForm extends AbstractEditForm<PathogenTestDto> {
 
 		addDateField(PathogenTestDto.REPORT_DATE, DateField.class, 0);
 		addField(PathogenTestDto.VIA_LIMS);
+		addField(PathogenTestDto.EXTERNAL_ID);
+		addField(PathogenTestDto.EXTERNAL_ORDER_ID);
 		ComboBox testTypeField = addField(PathogenTestDto.TEST_TYPE, ComboBox.class);
 		ComboBox pcrTestSpecification = addField(PathogenTestDto.PCR_TEST_SPECIFICATION, ComboBox.class);
 		TextField testTypeTextField = addField(PathogenTestDto.TEST_TYPE_TEXT, TextField.class);
@@ -122,16 +128,18 @@ public class PathogenTestForm extends AbstractEditForm<PathogenTestDto> {
 					sampleTestDateField.getCaption(),
 					I18nProperties.getPrefixCaption(SampleDto.I18N_PREFIX, SampleDto.SAMPLE_DATE_TIME),
 					DateFormatHelper.formatDate(sample.getSampleDateTime()))));
-		ComboBox lab = addField(PathogenTestDto.LAB, ComboBox.class);
+		ComboBox lab = addInfrastructureField(PathogenTestDto.LAB);
 		lab.addItems(FacadeProvider.getFacilityFacade().getAllActiveLaboratories(true));
 		TextField labDetails = addField(PathogenTestDto.LAB_DETAILS, TextField.class);
 		labDetails.setVisible(false);
 		TextField typingIdField = addField(PathogenTestDto.TYPING_ID, TextField.class);
 		typingIdField.setVisible(false);
-		ComboBox diseaseField = addDiseaseField(PathogenTestDto.TESTED_DISEASE, true);
+		ComboBox diseaseField = addDiseaseField(PathogenTestDto.TESTED_DISEASE, true, create);
 		ComboBox diseaseVariantField = addField(PathogenTestDto.TESTED_DISEASE_VARIANT, ComboBox.class);
 		diseaseVariantField.setNullSelectionAllowed(true);
 		addField(PathogenTestDto.TESTED_DISEASE_DETAILS, TextField.class);
+		TextField diseaseVariantDetailsField = addField(PathogenTestDto.TESTED_DISEASE_VARIANT_DETAILS, TextField.class);
+		diseaseVariantDetailsField.setVisible(false);
 
 		ComboBox testResultField = addField(PathogenTestDto.TEST_RESULT, ComboBox.class);
 		testResultField.removeItem(PathogenTestResultType.NOT_DONE);
@@ -204,6 +212,9 @@ public class PathogenTestForm extends AbstractEditForm<PathogenTestDto> {
 			diseaseVariantField.setVisible(
 				disease != null && isVisibleAllowed(PathogenTestDto.TESTED_DISEASE_VARIANT) && CollectionUtils.isNotEmpty(diseaseVariants));
 		});
+		diseaseVariantField.addValueChangeListener(
+			e -> diseaseVariantDetailsField
+				.setVisible(((DiseaseVariant) e.getProperty().getValue()).matchPropertyValue(DiseaseVariant.HAS_DETAILS, true)));
 
 		testTypeField.addValueChangeListener(e -> {
 			PathogenTestType testType = (PathogenTestType) e.getProperty().getValue();
@@ -253,7 +264,7 @@ public class PathogenTestForm extends AbstractEditForm<PathogenTestDto> {
 		if (sample.getSamplePurpose() != SamplePurpose.INTERNAL) {
 			setRequired(true, PathogenTestDto.LAB);
 		}
-		setRequired(true, PathogenTestDto.TEST_TYPE, PathogenTestDto.TESTED_DISEASE, PathogenTestDto.TEST_DATE_TIME, PathogenTestDto.TEST_RESULT);
+		setRequired(true, PathogenTestDto.TEST_TYPE, PathogenTestDto.TESTED_DISEASE, PathogenTestDto.TEST_RESULT);
 	}
 
 	@Override

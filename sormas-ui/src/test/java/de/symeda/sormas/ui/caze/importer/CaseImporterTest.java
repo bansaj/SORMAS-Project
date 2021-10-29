@@ -6,6 +6,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
 import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -20,6 +22,7 @@ import com.vaadin.ui.UI;
 
 import de.symeda.sormas.api.caze.CaseDataDto;
 import de.symeda.sormas.api.importexport.InvalidColumnException;
+import de.symeda.sormas.api.importexport.ValueSeparator;
 import de.symeda.sormas.api.person.PersonDto;
 import de.symeda.sormas.api.person.SimilarPersonDto;
 import de.symeda.sormas.api.user.UserDto;
@@ -246,13 +249,41 @@ public class CaseImporterTest extends AbstractBeanTest {
 		assertEquals(10, getCaseFacade().count(null));
 	}
 
+	@Test
+	public void testImportWithInvalidCsvContent()
+		throws InterruptedException, InvalidColumnException, CsvValidationException, IOException, URISyntaxException {
+		TestDataCreator.RDCF rdcf = creator.createRDCF("Abia", "Umuahia North", "Urban Ward 2", "Anelechi Hospital");
+		UserDto user = creator
+			.createUser(rdcf.region.getUuid(), rdcf.district.getUuid(), rdcf.facility.getUuid(), "Surv", "Sup", UserRole.SURVEILLANCE_SUPERVISOR);
+
+		// csv with missing header
+		File csvFile = new File(getClass().getClassLoader().getResource("sormas_case_import_test_one_data_line_missing_header.csv").toURI());
+		CaseImporterExtension caseImporter = new CaseImporterExtension(csvFile, true, user);
+		ImportResultStatus importResult = caseImporter.runImport();
+
+		assertEquals(ImportResultStatus.CANCELED_WITH_ERRORS, importResult);
+
+		// csv with wrong separator
+		csvFile = new File(getClass().getClassLoader().getResource("sormas_case_contact_import_test_success.csv").toURI());
+		caseImporter = new CaseImporterExtension(csvFile, true, user, ValueSeparator.SEMICOLON);
+		importResult = caseImporter.runImport();
+
+		assertEquals(ImportResultStatus.CANCELED_WITH_ERRORS, importResult);
+
+	}
+
 	public static class CaseImporterExtension extends CaseImporter {
 
 		public StringBuilder stringBuilder = new StringBuilder("");
 		private StringBuilderWriter writer = new StringBuilderWriter(stringBuilder);
 
-		public CaseImporterExtension(File inputFile, boolean hasEntityClassRow, UserDto currentUser) {
-			super(inputFile, hasEntityClassRow, currentUser);
+		public CaseImporterExtension(File inputFile, boolean hasEntityClassRow, UserDto currentUser) throws IOException {
+			this(inputFile, hasEntityClassRow, currentUser, ValueSeparator.DEFAULT);
+		}
+
+		public CaseImporterExtension(File inputFile, boolean hasEntityClassRow, UserDto currentUser, ValueSeparator valueSeparator)
+			throws IOException {
+			super(inputFile, hasEntityClassRow, currentUser, valueSeparator);
 		}
 
 		@Override
@@ -273,6 +304,11 @@ public class CaseImporterTest extends AbstractBeanTest {
 		@Override
 		protected Writer createErrorReportWriter() {
 			return writer;
+		}
+
+		@Override
+		protected Path getErrorReportFolderPath() {
+			return Paths.get(System.getProperty("java.io.tmpdir"));
 		}
 	}
 }

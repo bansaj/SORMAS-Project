@@ -52,25 +52,25 @@ import com.vaadin.v7.ui.TextField;
 
 import de.symeda.sormas.api.EntityRelevanceStatus;
 import de.symeda.sormas.api.FacadeProvider;
-import de.symeda.sormas.api.facility.FacilityDto;
-import de.symeda.sormas.api.facility.FacilityReferenceDto;
-import de.symeda.sormas.api.facility.FacilityType;
-import de.symeda.sormas.api.facility.FacilityTypeGroup;
+import de.symeda.sormas.api.infrastructure.facility.FacilityDto;
+import de.symeda.sormas.api.infrastructure.facility.FacilityReferenceDto;
+import de.symeda.sormas.api.infrastructure.facility.FacilityType;
+import de.symeda.sormas.api.infrastructure.facility.FacilityTypeGroup;
 import de.symeda.sormas.api.i18n.Captions;
 import de.symeda.sormas.api.i18n.I18nProperties;
 import de.symeda.sormas.api.i18n.Strings;
 import de.symeda.sormas.api.i18n.Validations;
 import de.symeda.sormas.api.location.LocationDto;
 import de.symeda.sormas.api.person.PersonAddressType;
-import de.symeda.sormas.api.region.CommunityReferenceDto;
-import de.symeda.sormas.api.region.ContinentCriteria;
-import de.symeda.sormas.api.region.ContinentReferenceDto;
-import de.symeda.sormas.api.region.CountryReferenceDto;
-import de.symeda.sormas.api.region.DistrictReferenceDto;
-import de.symeda.sormas.api.region.GeoLatLon;
-import de.symeda.sormas.api.region.RegionReferenceDto;
-import de.symeda.sormas.api.region.SubcontinentCriteria;
-import de.symeda.sormas.api.region.SubcontinentReferenceDto;
+import de.symeda.sormas.api.infrastructure.community.CommunityReferenceDto;
+import de.symeda.sormas.api.infrastructure.continent.ContinentCriteria;
+import de.symeda.sormas.api.infrastructure.continent.ContinentReferenceDto;
+import de.symeda.sormas.api.infrastructure.country.CountryReferenceDto;
+import de.symeda.sormas.api.infrastructure.district.DistrictReferenceDto;
+import de.symeda.sormas.api.geo.GeoLatLon;
+import de.symeda.sormas.api.infrastructure.region.RegionReferenceDto;
+import de.symeda.sormas.api.infrastructure.subcontinent.SubcontinentCriteria;
+import de.symeda.sormas.api.infrastructure.subcontinent.SubcontinentReferenceDto;
 import de.symeda.sormas.api.utils.fieldaccess.UiFieldAccessCheckers;
 import de.symeda.sormas.api.utils.fieldvisibility.FieldVisibilityCheckers;
 import de.symeda.sormas.ui.map.LeafletMap;
@@ -106,13 +106,11 @@ public class LocationEditForm extends AbstractEditForm<LocationDto> {
 			fluidRowLocs(LocationDto.POSTAL_CODE, LocationDto.CITY, LocationDto.AREA_TYPE),
 			fluidRowLocs(LocationDto.CONTACT_PERSON_FIRST_NAME, LocationDto.CONTACT_PERSON_LAST_NAME),
 			fluidRowLocs(LocationDto.CONTACT_PERSON_PHONE, LocationDto.CONTACT_PERSON_EMAIL),
-			fluidRow(
-				loc(LocationDto.DETAILS),
-				fluidRow(
-					fluidColumnLoc(2, 0, GEO_BUTTONS_LOC),
-					fluidColumnLoc(3, 0, LocationDto.LATITUDE),
-					fluidColumnLoc(3, 0, LocationDto.LONGITUDE),
-					fluidColumnLoc(4, 0, LocationDto.LAT_LON_ACCURACY))));
+			fluidRow(fluidColumnLoc(4, 0, LocationDto.DETAILS),
+							fluidColumnLoc(2, 0, GEO_BUTTONS_LOC),
+							fluidColumnLoc(2, 0, LocationDto.LATITUDE),
+							fluidColumnLoc(2, 0, LocationDto.LONGITUDE),
+							fluidColumnLoc(2, 0, LocationDto.LAT_LON_ACCURACY)));
 
 	private MapPopupView leafletMapPopup;
 	private ComboBox addressType;
@@ -129,6 +127,7 @@ public class LocationEditForm extends AbstractEditForm<LocationDto> {
 
 	private boolean districtRequiredOnDefaultCountry;
 	private boolean skipCountryValueChange;
+	private boolean skipFacilityTypeUpdate;
 
 	public LocationEditForm(FieldVisibilityCheckers fieldVisibilityCheckers, UiFieldAccessCheckers fieldAccessCheckers) {
 		super(LocationDto.class, LocationDto.I18N_PREFIX, true, fieldVisibilityCheckers, fieldAccessCheckers);
@@ -142,6 +141,10 @@ public class LocationEditForm extends AbstractEditForm<LocationDto> {
 		return facilityTypeGroup;
 	}
 
+	public ComboBox getFacilityType() {
+		return facilityType;
+	}
+
 	private void setConvertedValue(String propertyId, Object value) {
 		((AbstractField<?>) getField(propertyId)).setConvertedValue(value);
 	}
@@ -153,6 +156,10 @@ public class LocationEditForm extends AbstractEditForm<LocationDto> {
 
 	public void setFieldsRequirement(boolean required, String... fieldIds) {
 		setRequired(required, fieldIds);
+	}
+
+	public void setSkipFacilityTypeUpdate(boolean skipFacilityTypeUpdate) {
+		this.skipFacilityTypeUpdate = skipFacilityTypeUpdate;
 	}
 
 	@SuppressWarnings("deprecation")
@@ -386,10 +393,13 @@ public class LocationEditForm extends AbstractEditForm<LocationDto> {
 							: null);
 			}
 		});
+		skipFacilityTypeUpdate = false;
 		facilityTypeGroup.addValueChangeListener(e -> {
-			FieldHelper.removeItems(facility);
-			FieldHelper.updateEnumData(facilityType, FacilityType.getTypes((FacilityTypeGroup) facilityTypeGroup.getValue()));
-			facilityType.setRequired(facilityTypeGroup.getValue() != null);
+			if (!skipFacilityTypeUpdate) {
+				FieldHelper.removeItems(facility);
+				FieldHelper.updateEnumData(facilityType, FacilityType.getTypes((FacilityTypeGroup) facilityTypeGroup.getValue()));
+				facilityType.setRequired(facilityTypeGroup.getValue() != null);
+			}
 		});
 		facilityType.addValueChangeListener(e -> {
 			FieldHelper.removeItems(facility);
@@ -691,6 +701,21 @@ public class LocationEditForm extends AbstractEditForm<LocationDto> {
 			facilityDetails.clear();
 			facilityType.clear();
 			facilityTypeGroup.clear();
+		}
+	}
+
+	public void setFacilityFieldsVisibleExceptTypeGroupField(boolean visible, boolean clearOnHidden) {
+		facility.setVisible(visible);
+		facilityDetails.setVisible(visible && areFacilityDetailsRequired());
+		facilityType.setVisible(visible);
+		facilityTypeGroup.setVisible(false);
+
+		setFacilityContactPersonFieldsVisible(visible && (facilityType.getValue() != null), clearOnHidden);
+
+		if (!visible && clearOnHidden) {
+			facility.clear();
+			facilityDetails.clear();
+			facilityType.clear();
 		}
 	}
 

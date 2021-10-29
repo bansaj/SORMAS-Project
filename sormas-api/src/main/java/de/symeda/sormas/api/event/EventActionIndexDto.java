@@ -1,6 +1,6 @@
 /*******************************************************************************
  * SORMAS® - Surveillance Outbreak Response Management & Analysis System
- * Copyright © 2016-2018 Helmholtz-Zentrum für Infektionsforschung GmbH (HZI)
+ * Copyright © 2016-2021 Helmholtz-Zentrum für Infektionsforschung GmbH (HZI)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
  *******************************************************************************/
 package de.symeda.sormas.api.event;
 
+import de.symeda.sormas.api.Disease;
+import de.symeda.sormas.api.disease.DiseaseVariant;
 import java.io.Serializable;
 import java.util.Date;
 
@@ -33,6 +35,10 @@ public class EventActionIndexDto implements Serializable {
 
 	public static final String EVENT_UUID = "eventUuid";
 	public static final String EVENT_TITLE = "eventTitle";
+	public static final String EVENT_DISEASE = "eventDisease";
+	public static final String EVENT_DISEASE_VARIANT = "eventDiseaseVariant";
+	public static final String EVENT_DISEASE_DETAILS = "eventDiseaseDetails";
+	public static final String EVENT_IDENTIFICATION_SOURCE = "eventIdentificationSource";
 	public static final String EVENT_START_DATE = "eventStartDate";
 	public static final String EVENT_END_DATE = "eventEndDate";
 	public static final String EVENT_STATUS = "eventStatus";
@@ -45,6 +51,7 @@ public class EventActionIndexDto implements Serializable {
 	public static final String ACTION_TITLE = "actionTitle";
 	public static final String ACTION_CREATION_DATE = "actionCreationDate";
 	public static final String ACTION_CHANGE_DATE = "actionChangeDate";
+	public static final String ACTION_DATE = "actionDate";
 	public static final String ACTION_STATUS = "actionStatus";
 	public static final String ACTION_PRIORITY = "actionPriority";
 	public static final String ACTION_LAST_MODIFIED_BY = "actionLastModifiedBy";
@@ -52,6 +59,10 @@ public class EventActionIndexDto implements Serializable {
 
 	private String eventUuid;
 	private String eventTitle;
+	private Disease eventDisease;
+	private DiseaseVariant eventDiseaseVariant;
+	private String eventDiseaseDetails;
+	private EventIdentificationSource eventIdentificationSource;
 	private Date eventStartDate;
 	private Date eventEndDate;
 	private EventStatus eventStatus;
@@ -64,6 +75,7 @@ public class EventActionIndexDto implements Serializable {
 	private String actionTitle;
 	private Date actionCreationDate;
 	private Date actionChangeDate;
+	private Date actionDate;
 	private ActionStatus actionStatus;
 	private ActionPriority actionPriority;
 	private UserReferenceDto actionLastModifiedBy;
@@ -72,6 +84,10 @@ public class EventActionIndexDto implements Serializable {
 	public EventActionIndexDto(
 		String eventUuid,
 		String eventTitle,
+		Disease eventDisease,
+		DiseaseVariant eventDiseaseVariant,
+		String eventDiseaseDetails,
+		EventIdentificationSource eventIdentificationSource,
 		Date eventStartDate,
 		Date eventEndDate,
 		EventStatus eventStatus,
@@ -89,6 +105,7 @@ public class EventActionIndexDto implements Serializable {
 		String actionTitle,
 		Date actionCreationDate,
 		Date actionChangeDate,
+		Date actionDate,
 		ActionStatus actionStatus,
 		ActionPriority actionPriority,
 		String actionLastModifiedByUuid,
@@ -100,6 +117,10 @@ public class EventActionIndexDto implements Serializable {
 
 		this.eventUuid = eventUuid;
 		this.eventTitle = eventTitle;
+		this.eventDisease = eventDisease;
+		this.eventDiseaseVariant = eventDiseaseVariant;
+		this.eventDiseaseDetails = eventDiseaseDetails;
+		this.eventIdentificationSource = eventIdentificationSource;
 		this.eventStartDate = eventStartDate;
 		this.eventEndDate = eventEndDate;
 		this.eventStatus = eventStatus;
@@ -112,6 +133,7 @@ public class EventActionIndexDto implements Serializable {
 		this.actionTitle = actionTitle;
 		this.actionCreationDate = actionCreationDate;
 		this.actionChangeDate = actionChangeDate;
+		this.actionDate = actionDate;
 		this.actionStatus = actionStatus;
 		this.actionPriority = actionPriority;
 		this.actionLastModifiedBy = new UserReferenceDto(actionLastModifiedByUuid, actionLastModifiedByFirstName, actionLastModifiedByLastName, null);
@@ -133,6 +155,38 @@ public class EventActionIndexDto implements Serializable {
 
 	public void setEventTitle(String eventTitle) {
 		this.eventTitle = eventTitle;
+	}
+
+	public Disease getEventDisease() {
+		return eventDisease;
+	}
+
+	public void setEventDisease(Disease eventDisease) {
+		this.eventDisease = eventDisease;
+	}
+
+	public DiseaseVariant getEventDiseaseVariant() {
+		return eventDiseaseVariant;
+	}
+
+	public void setEventDiseaseVariant(DiseaseVariant eventDiseaseVariant) {
+		this.eventDiseaseVariant = eventDiseaseVariant;
+	}
+
+	public String getEventDiseaseDetails() {
+		return eventDiseaseDetails;
+	}
+
+	public void setEventDiseaseDetails(String eventDiseaseDetails) {
+		this.eventDiseaseDetails = eventDiseaseDetails;
+	}
+
+	public EventIdentificationSource getEventIdentificationSource() {
+		return eventIdentificationSource;
+	}
+
+	public void setEventIdentificationSource(EventIdentificationSource eventIdentificationSource) {
+		this.eventIdentificationSource = eventIdentificationSource;
 	}
 
 	public Date getEventStartDate() {
@@ -221,6 +275,14 @@ public class EventActionIndexDto implements Serializable {
 
 	public void setActionChangeDate(Date actionChangeDate) {
 		this.actionChangeDate = actionChangeDate;
+	}
+
+	public Date getActionDate() {
+		return actionDate;
+	}
+
+	public void setActionDate(Date actionDate) {
+		this.actionDate = actionDate;
 	}
 
 	public ActionStatus getActionStatus() {

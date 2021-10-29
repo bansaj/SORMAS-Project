@@ -19,12 +19,17 @@ package de.symeda.sormas.api.hospitalization;
 
 import java.util.Date;
 
+import javax.validation.constraints.Size;
+
 import de.symeda.sormas.api.caze.CaseDataDto;
-import de.symeda.sormas.api.facility.FacilityReferenceDto;
-import de.symeda.sormas.api.region.CommunityReferenceDto;
-import de.symeda.sormas.api.region.DistrictReferenceDto;
-import de.symeda.sormas.api.region.RegionReferenceDto;
+import de.symeda.sormas.api.caze.CaseLogic;
+import de.symeda.sormas.api.i18n.Validations;
+import de.symeda.sormas.api.infrastructure.community.CommunityReferenceDto;
+import de.symeda.sormas.api.infrastructure.district.DistrictReferenceDto;
+import de.symeda.sormas.api.infrastructure.facility.FacilityReferenceDto;
+import de.symeda.sormas.api.infrastructure.region.RegionReferenceDto;
 import de.symeda.sormas.api.utils.DataHelper;
+import de.symeda.sormas.api.utils.FieldConstraints;
 import de.symeda.sormas.api.utils.SensitiveData;
 import de.symeda.sormas.api.utils.YesNoUnknown;
 import de.symeda.sormas.api.utils.pseudonymization.PseudonymizableDto;
@@ -59,12 +64,15 @@ public class PreviousHospitalizationDto extends PseudonymizableDto {
 	@SensitiveData
 	private FacilityReferenceDto healthFacility;
 	@SensitiveData
+	@Size(max = FieldConstraints.CHARACTER_LIMIT_DEFAULT, message = Validations.textTooLong)
 	private String healthFacilityDetails;
 	private YesNoUnknown isolated;
 	@SensitiveData
+	@Size(max = FieldConstraints.CHARACTER_LIMIT_BIG, message = Validations.textTooLong)
 	private String description;
 
 	private HospitalizationReasonType hospitalizationReason;
+	@Size(max = FieldConstraints.CHARACTER_LIMIT_TEXT, message = Validations.textTooLong)
 	private String otherHospitalizationReason;
 
 	private YesNoUnknown intensiveCareUnit;
@@ -89,9 +97,9 @@ public class PreviousHospitalizationDto extends PseudonymizableDto {
 			previousHospitalization.setDischargeDate(new Date());
 		}
 
-		previousHospitalization.setRegion(caze.getRegion());
-		previousHospitalization.setDistrict(caze.getDistrict());
-		previousHospitalization.setCommunity(caze.getCommunity());
+		previousHospitalization.setRegion(CaseLogic.getRegionWithFallback(caze));
+		previousHospitalization.setDistrict(CaseLogic.getDistrictWithFallback(caze));
+		previousHospitalization.setCommunity(CaseLogic.getCommunityWithFallback(caze));
 		previousHospitalization.setHealthFacility(caze.getHealthFacility());
 		previousHospitalization.setHealthFacilityDetails(caze.getHealthFacilityDetails());
 		previousHospitalization.setIsolated(hospitalization.getIsolated());

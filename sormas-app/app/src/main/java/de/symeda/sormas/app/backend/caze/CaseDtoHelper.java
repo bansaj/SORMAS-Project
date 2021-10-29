@@ -108,6 +108,7 @@ public class CaseDtoHelper extends AdoDtoHelper<Case, CaseDataDto> {
 		target.setDisease(source.getDisease());
 		target.setDiseaseVariant(source.getDiseaseVariant());
 		target.setDiseaseDetails(source.getDiseaseDetails());
+		target.setDiseaseVariantDetails(source.getDiseaseVariantDetails());
 		target.setPlagueType(source.getPlagueType());
 		target.setDengueFeverType(source.getDengueFeverType());
 
@@ -144,21 +145,10 @@ public class CaseDtoHelper extends AdoDtoHelper<Case, CaseDataDto> {
 		target.setClinicianPhone(source.getClinicianPhone());
 		target.setClinicianEmail(source.getClinicianEmail());
 		target.setPregnant(source.getPregnant());
-		target.setVaccination(source.getVaccination());
-		target.setVaccinationDoses(source.getVaccinationDoses());
-		target.setVaccinationInfoSource(source.getVaccinationInfoSource());
+		target.setVaccinationStatus(source.getVaccinationStatus());
 		target.setSmallpoxVaccinationScar(source.getSmallpoxVaccinationScar());
 		target.setSmallpoxVaccinationReceived(source.getSmallpoxVaccinationReceived());
-		target.setFirstVaccinationDate(source.getFirstVaccinationDate());
-		target.setLastVaccinationDate(source.getLastVaccinationDate());
-		target.setVaccineName(source.getVaccineName());
-		target.setOtherVaccineName(source.getOtherVaccineName());
-		target.setVaccineManufacturer(source.getVaccineManufacturer());
-		target.setOtherVaccineManufacturer(source.getOtherVaccineManufacturer());
-		target.setVaccineInn(source.getVaccineInn());
-		target.setVaccineBatchNumber(source.getVaccineBatchNumber());
-		target.setVaccineUniiCode(source.getVaccineUniiCode());
-		target.setVaccineAtcCode(source.getVaccineAtcCode());
+		target.setSmallpoxLastVaccinationDate(source.getSmallpoxLastVaccinationDate());
 		target.setEpidNumber(source.getEpidNumber());
 		target.setCaseOrigin(source.getCaseOrigin());
 
@@ -173,7 +163,6 @@ public class CaseDtoHelper extends AdoDtoHelper<Case, CaseDataDto> {
 		target.setNotifyingClinic(source.getNotifyingClinic());
 		target.setNotifyingClinicDetails(source.getNotifyingClinicDetails());
 
-		target.setVaccine(source.getVaccine());
 		target.setRabiesType(source.getRabiesType());
 
 		target.setCreationVersion(source.getCreationVersion());
@@ -181,6 +170,7 @@ public class CaseDtoHelper extends AdoDtoHelper<Case, CaseDataDto> {
 		target.setAdditionalDetails(source.getAdditionalDetails());
 		target.setExternalID(source.getExternalID());
 		target.setExternalToken(source.getExternalToken());
+		target.setInternalToken(source.getInternalToken());
 
 		target.setQuarantine(source.getQuarantine());
 		target.setQuarantineTypeDetails(source.getQuarantineTypeDetails());
@@ -224,8 +214,6 @@ public class CaseDtoHelper extends AdoDtoHelper<Case, CaseDataDto> {
 		target.setReInfection(source.getReInfection());
 		target.setPreviousInfectionDate(source.getPreviousInfectionDate());
 
-		target.setReportingDistrict(DatabaseHelper.getDistrictDao().getByReferenceDto(source.getReportingDistrict()));
-
 		target.setBloodOrganOrTissueDonated(source.getBloodOrganOrTissueDonated());
 
 		target.setSormasToSormasOriginInfo(
@@ -265,6 +253,7 @@ public class CaseDtoHelper extends AdoDtoHelper<Case, CaseDataDto> {
 		target.setDisease(source.getDisease());
 		target.setDiseaseVariant(source.getDiseaseVariant());
 		target.setDiseaseDetails(source.getDiseaseDetails());
+		target.setDiseaseVariantDetails(source.getDiseaseVariantDetails());
 		target.setPlagueType(source.getPlagueType());
 		target.setDengueFeverType(source.getDengueFeverType());
 
@@ -403,21 +392,10 @@ public class CaseDtoHelper extends AdoDtoHelper<Case, CaseDataDto> {
 		target.setClinicianPhone(source.getClinicianPhone());
 		target.setClinicianEmail(source.getClinicianEmail());
 		target.setPregnant(source.getPregnant());
-		target.setVaccination(source.getVaccination());
-		target.setVaccinationDoses(source.getVaccinationDoses());
-		target.setVaccinationInfoSource(source.getVaccinationInfoSource());
+		target.setVaccinationStatus(source.getVaccinationStatus());
 		target.setSmallpoxVaccinationScar(source.getSmallpoxVaccinationScar());
 		target.setSmallpoxVaccinationReceived(source.getSmallpoxVaccinationReceived());
-		target.setFirstVaccinationDate(source.getFirstVaccinationDate());
-		target.setLastVaccinationDate(source.getLastVaccinationDate());
-		target.setVaccineName(source.getVaccineName());
-		target.setOtherVaccineName(source.getOtherVaccineName());
-		target.setVaccineManufacturer(source.getVaccineManufacturer());
-		target.setOtherVaccineManufacturer(source.getOtherVaccineManufacturer());
-		target.setVaccineInn(source.getVaccineInn());
-		target.setVaccineBatchNumber(source.getVaccineBatchNumber());
-		target.setVaccineUniiCode(source.getVaccineUniiCode());
-		target.setVaccineAtcCode(source.getVaccineAtcCode());
+		target.setSmallpoxLastVaccinationDate(source.getSmallpoxLastVaccinationDate());
 		target.setEpidNumber(source.getEpidNumber());
 		target.setCaseOrigin(source.getCaseOrigin());
 
@@ -432,7 +410,6 @@ public class CaseDtoHelper extends AdoDtoHelper<Case, CaseDataDto> {
 		target.setNotifyingClinic(source.getNotifyingClinic());
 		target.setNotifyingClinicDetails(source.getNotifyingClinicDetails());
 
-		target.setVaccine(source.getVaccine());
 		target.setRabiesType(source.getRabiesType());
 
 		target.setCreationVersion(source.getCreationVersion());
@@ -440,6 +417,7 @@ public class CaseDtoHelper extends AdoDtoHelper<Case, CaseDataDto> {
 		target.setAdditionalDetails(source.getAdditionalDetails());
 		target.setExternalID(source.getExternalID());
 		target.setExternalToken(source.getExternalToken());
+		target.setInternalToken(source.getInternalToken());
 
 		target.setQuarantine(source.getQuarantine());
 		target.setQuarantineTypeDetails(source.getQuarantineTypeDetails());
@@ -482,13 +460,6 @@ public class CaseDtoHelper extends AdoDtoHelper<Case, CaseDataDto> {
 
 		target.setReInfection(source.getReInfection());
 		target.setPreviousInfectionDate(source.getPreviousInfectionDate());
-
-		if (source.getReportingDistrict() != null) {
-			District district = DatabaseHelper.getDistrictDao().queryForId(source.getReportingDistrict().getId());
-			target.setReportingDistrict(DistrictDtoHelper.toReferenceDto(district));
-		} else {
-			target.setReportingDistrict(null);
-		}
 
 		target.setBloodOrganOrTissueDonated(source.getBloodOrganOrTissueDonated());
 

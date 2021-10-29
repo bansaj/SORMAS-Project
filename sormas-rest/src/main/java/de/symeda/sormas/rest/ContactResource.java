@@ -30,6 +30,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 
 import de.symeda.sormas.api.FacadeProvider;
 import de.symeda.sormas.api.PushResult;
@@ -38,6 +39,8 @@ import de.symeda.sormas.api.common.Page;
 import de.symeda.sormas.api.contact.ContactCriteria;
 import de.symeda.sormas.api.contact.ContactDto;
 import de.symeda.sormas.api.contact.ContactIndexDto;
+import de.symeda.sormas.api.externaldata.ExternalDataDto;
+import de.symeda.sormas.api.externaldata.ExternalDataUpdateException;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 
 /**
@@ -105,4 +108,28 @@ public class ContactResource extends EntityDtoResource {
 		return FacadeProvider.getContactFacade()
 			.getIndexPage(criteriaWithSorting.getCriteria(), offset, size, criteriaWithSorting.getSortProperties());
 	}
+
+	@POST
+	@Path("/externalData")
+	public Response updateExternalData(@Valid List<ExternalDataDto> externalData) {
+		try {
+			FacadeProvider.getContactFacade().updateExternalData(externalData);
+			return Response.status(Response.Status.OK).build();
+		} catch (ExternalDataUpdateException e) {
+			return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+		}
+	}
+
+	@POST
+	@Path("/delete")
+	public List<String> delete(List<String> uuids) {
+		return FacadeProvider.getContactFacade().deleteContacts(uuids);
+	}
+
+	@GET
+	@Path("/{uuid}")
+	public ContactDto getByUuid(@PathParam("uuid") String uuid) {
+		return FacadeProvider.getContactFacade().getContactByUuid(uuid);
+	}
+
 }

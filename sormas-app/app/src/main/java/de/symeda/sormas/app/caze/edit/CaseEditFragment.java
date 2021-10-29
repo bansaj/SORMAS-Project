@@ -25,7 +25,9 @@ import java.util.Date;
 import java.util.List;
 
 import android.webkit.WebView;
+
 import androidx.fragment.app.FragmentActivity;
+
 import de.symeda.sormas.api.CountryHelper;
 import de.symeda.sormas.api.Disease;
 import de.symeda.sormas.api.caze.CaseClassification;
@@ -44,18 +46,13 @@ import de.symeda.sormas.api.caze.QuarantineReason;
 import de.symeda.sormas.api.caze.RabiesType;
 import de.symeda.sormas.api.caze.ScreeningType;
 import de.symeda.sormas.api.caze.Trimester;
-import de.symeda.sormas.api.caze.Vaccination;
-import de.symeda.sormas.api.caze.VaccinationInfoSource;
-import de.symeda.sormas.api.caze.Vaccine;
-import de.symeda.sormas.api.caze.VaccineManufacturer;
+import de.symeda.sormas.api.caze.VaccinationStatus;
 import de.symeda.sormas.api.contact.QuarantineType;
 import de.symeda.sormas.api.customizableenum.CustomizableEnumType;
 import de.symeda.sormas.api.disease.DiseaseVariant;
 import de.symeda.sormas.api.event.TypeOfPlace;
-import de.symeda.sormas.api.facility.FacilityDto;
-import de.symeda.sormas.api.facility.FacilityTypeGroup;
-import de.symeda.sormas.api.i18n.I18nProperties;
-import de.symeda.sormas.api.i18n.Validations;
+import de.symeda.sormas.api.infrastructure.facility.FacilityDto;
+import de.symeda.sormas.api.infrastructure.facility.FacilityTypeGroup;
 import de.symeda.sormas.api.person.Sex;
 import de.symeda.sormas.api.user.UserRight;
 import de.symeda.sormas.api.user.UserRole;
@@ -71,17 +68,18 @@ import de.symeda.sormas.app.backend.classification.DiseaseClassificationAppHelpe
 import de.symeda.sormas.app.backend.classification.DiseaseClassificationCriteria;
 import de.symeda.sormas.app.backend.common.DatabaseHelper;
 import de.symeda.sormas.app.backend.config.ConfigProvider;
+import de.symeda.sormas.app.backend.facility.Facility;
 import de.symeda.sormas.app.component.Item;
 import de.symeda.sormas.app.component.controls.ControlPropertyField;
 import de.symeda.sormas.app.component.controls.ValueChangeListener;
 import de.symeda.sormas.app.component.dialog.ConfirmationDialog;
 import de.symeda.sormas.app.component.dialog.InfoDialog;
-import de.symeda.sormas.app.component.validation.ValidationHelper;
 import de.symeda.sormas.app.databinding.DialogClassificationRulesLayoutBinding;
 import de.symeda.sormas.app.databinding.FragmentCaseEditLayoutBinding;
 import de.symeda.sormas.app.util.DataUtils;
 import de.symeda.sormas.app.util.DiseaseConfigurationCache;
 import de.symeda.sormas.app.util.InfrastructureDaoHelper;
+import de.symeda.sormas.app.util.InfrastructureFieldsDependencyHandler;
 
 public class CaseEditFragment extends BaseEditFragment<FragmentCaseEditLayoutBinding, Case, Case> {
 
@@ -96,7 +94,6 @@ public class CaseEditFragment extends BaseEditFragment<FragmentCaseEditLayoutBin
 	private List<Item> caseIdentificationSourceList;
 	private List<Item> caseScreeningTypeList;
 	private List<Item> caseOutcomeList;
-	private List<Item> vaccinationInfoSourceList;
 	private List<Item> diseaseList;
 	private List<Item> diseaseVariantList;
 	private List<Item> plagueTypeList;
@@ -106,7 +103,6 @@ public class CaseEditFragment extends BaseEditFragment<FragmentCaseEditLayoutBin
 	private List<Item> initialResponsibleDistricts;
 	private List<Item> initialResponsibleCommunities;
 	private List<Item> initialRegions;
-	private List<Item> allDistricts;
 	private List<Item> initialDistricts;
 	private List<Item> initialCommunities;
 	private List<Item> initialFacilities;
@@ -117,12 +113,9 @@ public class CaseEditFragment extends BaseEditFragment<FragmentCaseEditLayoutBin
 	private List<Item> endOfIsolationReasonList;
 	private List<Item> contactTracingContactTypeList;
 	private List<Item> infectionSettingList;
-	private List<Item> vaccineList;
-	private List<Item> vaccineManufacturerList;
-
 	private List<Item> caseConfirmationBasisList;
 
-	private boolean differentJurisdiction;
+	private boolean differentPlaceOfStayJurisdiction;
 
 	// Static methods
 
@@ -135,9 +128,8 @@ public class CaseEditFragment extends BaseEditFragment<FragmentCaseEditLayoutBin
 				.add(new CountryFieldVisibilityChecker(ConfigProvider.getServerLocale())),
 			UiFieldAccessCheckers.getDefault(activityRootData.isPseudonymized()));
 
-		caseEditFragment.differentJurisdiction = activityRootData.getResponsibleRegion() != null
-			|| activityRootData.getResponsibleDistrict() != null
-			|| activityRootData.getResponsibleCommunity() != null;
+		caseEditFragment.differentPlaceOfStayJurisdiction =
+			activityRootData.getRegion() != null || activityRootData.getDistrict() != null || activityRootData.getCommunity() != null;
 
 		return caseEditFragment;
 	}
@@ -154,22 +146,6 @@ public class CaseEditFragment extends BaseEditFragment<FragmentCaseEditLayoutBin
 		if (!isFieldAccessible(CaseDataDto.class, contentBinding.caseDataCommunity)) {
 			contentBinding.caseDataRegion.setEnabled(false);
 			contentBinding.caseDataDistrict.setEnabled(false);
-		}
-
-		// Vaccination
-		if (isVisibleAllowed(CaseDataDto.class, contentBinding.caseDataVaccineName)) {
-			setVisibleWhen(contentBinding.caseDataVaccineName, contentBinding.caseDataVaccination, Vaccination.VACCINATED);
-		}
-		if (isVisibleAllowed(CaseDataDto.class, contentBinding.caseDataVaccineManufacturer)) {
-			setVisibleWhen(contentBinding.caseDataVaccineManufacturer, contentBinding.caseDataVaccination, Vaccination.VACCINATED);
-		}
-
-		if (isVisibleAllowed(CaseDataDto.class, contentBinding.caseDataSmallpoxVaccinationReceived)) {
-			setVisibleWhen(contentBinding.caseDataLastVaccinationDate, contentBinding.caseDataSmallpoxVaccinationReceived, YesNoUnknown.YES);
-		}
-
-		if (isVisibleAllowed(CaseDataDto.class, contentBinding.caseDataVaccine)) {
-			setVisibleWhen(contentBinding.caseDataVaccine, contentBinding.caseDataVaccination, Vaccination.VACCINATED);
 		}
 
 		// Pregnancy
@@ -319,7 +295,6 @@ public class CaseEditFragment extends BaseEditFragment<FragmentCaseEditLayoutBin
 		caseIdentificationSourceList = DataUtils.getEnumItems(CaseIdentificationSource.class, true);
 		caseScreeningTypeList = DataUtils.getEnumItems(ScreeningType.class, true);
 		caseOutcomeList = DataUtils.getEnumItems(CaseOutcome.class, true);
-		vaccinationInfoSourceList = DataUtils.getEnumItems(VaccinationInfoSource.class, true);
 		plagueTypeList = DataUtils.getEnumItems(PlagueType.class, true);
 		dengueFeverTypeList = DataUtils.getEnumItems(DengueFeverType.class, true);
 		humanRabiesTypeList = DataUtils.getEnumItems(RabiesType.class, true);
@@ -327,7 +302,6 @@ public class CaseEditFragment extends BaseEditFragment<FragmentCaseEditLayoutBin
 		quarantineList = DataUtils.getEnumItems(QuarantineType.class, true);
 
 		initialRegions = InfrastructureDaoHelper.loadRegionsByServerCountry();
-		allDistricts = InfrastructureDaoHelper.loadAllDistricts();
 		initialResponsibleDistricts = InfrastructureDaoHelper.loadDistricts(record.getResponsibleRegion());
 		initialResponsibleCommunities = InfrastructureDaoHelper.loadCommunities(record.getResponsibleDistrict());
 		initialDistricts = InfrastructureDaoHelper.loadDistricts(record.getRegion());
@@ -340,8 +314,6 @@ public class CaseEditFragment extends BaseEditFragment<FragmentCaseEditLayoutBin
 		endOfIsolationReasonList = DataUtils.getEnumItems(EndOfIsolationReason.class, true);
 		contactTracingContactTypeList = DataUtils.getEnumItems(ContactTracingContactType.class, true);
 		infectionSettingList = DataUtils.getEnumItems(InfectionSetting.class, true);
-		vaccineList = DataUtils.getEnumItems(Vaccine.class, true);
-		vaccineManufacturerList = DataUtils.getEnumItems(VaccineManufacturer.class, true);
 
 		caseConfirmationBasisList = DataUtils.getEnumItems(CaseConfirmationBasis.class, true);
 	}
@@ -446,11 +418,13 @@ public class CaseEditFragment extends BaseEditFragment<FragmentCaseEditLayoutBin
 
 		contentBinding.setData(record);
 		contentBinding.setYesNoUnknownClass(YesNoUnknown.class);
-		contentBinding.setVaccinationClass(Vaccination.class);
+		contentBinding.setVaccinationStatusClass(VaccinationStatus.class);
 		contentBinding.setTrimesterClass(Trimester.class);
-		contentBinding.setDifferentJurisdiction(differentJurisdiction);
+		contentBinding.setDifferentPlaceOfStayJurisdiction(differentPlaceOfStayJurisdiction);
 
-		InfrastructureDaoHelper.initializeRegionFields(
+		Facility initialHealthFacility = record.getHealthFacility();
+
+		InfrastructureFieldsDependencyHandler.instance.initializeRegionFields(
 			contentBinding.caseDataResponsibleRegion,
 			initialRegions,
 			record.getResponsibleRegion(),
@@ -461,10 +435,23 @@ public class CaseEditFragment extends BaseEditFragment<FragmentCaseEditLayoutBin
 			initialResponsibleCommunities,
 			record.getResponsibleCommunity());
 
+		InfrastructureFieldsDependencyHandler.instance.initializeRegionFieldListeners(
+			contentBinding.caseDataResponsibleRegion,
+			contentBinding.caseDataResponsibleDistrict,
+			record.getResponsibleDistrict(),
+			contentBinding.caseDataResponsibleCommunity,
+			record.getResponsibleCommunity(),
+			contentBinding.caseDataFacilityType,
+			contentBinding.caseDataHealthFacility,
+			initialHealthFacility,
+			null,
+			null,
+			() -> Boolean.TRUE.equals(contentBinding.caseDataDifferentPlaceOfStayJurisdiction.getValue()));
+
 		InfrastructureDaoHelper
 			.initializeHealthFacilityDetailsFieldVisibility(contentBinding.caseDataHealthFacility, contentBinding.caseDataHealthFacilityDetails);
 
-		InfrastructureDaoHelper.initializeFacilityFields(
+		InfrastructureFieldsDependencyHandler.instance.initializeFacilityFields(
 			record,
 			contentBinding.caseDataRegion,
 			initialRegions,
@@ -483,9 +470,25 @@ public class CaseEditFragment extends BaseEditFragment<FragmentCaseEditLayoutBin
 			null,
 			contentBinding.caseDataHealthFacility,
 			initialFacilities,
-			record.getHealthFacility(),
+			initialHealthFacility,
 			contentBinding.caseDataHealthFacilityDetails,
-			false);
+			null,
+			null,
+			null,
+			false,
+			() -> Boolean.FALSE.equals(contentBinding.caseDataDifferentPlaceOfStayJurisdiction.getValue()));
+
+		// trigger responsible jurisdiction change handlers removing place of stay region/district/community
+		contentBinding.caseDataDifferentPlaceOfStayJurisdiction.addValueChangedListener(f -> {
+			if (Boolean.FALSE.equals(f.getValue())) {
+				InfrastructureFieldsDependencyHandler.instance.handleCommunityChange(
+					contentBinding.caseDataResponsibleCommunity,
+					contentBinding.caseDataResponsibleDistrict,
+					contentBinding.caseDataHealthFacility,
+					contentBinding.caseDataFacilityType,
+					initialHealthFacility);
+			}
+		});
 
 		if (record.getCaseOrigin() != CaseOrigin.POINT_OF_ENTRY && isFieldAccessible(CaseDataDto.class, contentBinding.caseDataHealthFacility)) {
 			contentBinding.caseDataHealthFacility.setRequired(true);
@@ -584,48 +587,7 @@ public class CaseEditFragment extends BaseEditFragment<FragmentCaseEditLayoutBin
 		contentBinding.caseDataQuarantineReduced
 			.addValueChangedListener(e -> contentBinding.caseDataQuarantineReduced.setVisibility(record.isQuarantineReduced() ? VISIBLE : GONE));
 
-		contentBinding.caseDataVaccineName.addValueChangedListener(new ValueChangeListener() {
-
-			private Vaccine currentVaccine = record.getVaccineName();
-
-			@Override
-			public void onChange(ControlPropertyField e) {
-				Vaccine vaccine = (Vaccine) e.getValue();
-
-				if (currentVaccine != vaccine) {
-					contentBinding.caseDataVaccineManufacturer.setValue(vaccine != null ? vaccine.getManufacturer() : null);
-					currentVaccine = vaccine;
-				}
-			}
-		});
-
-		contentBinding.caseDataVaccinationDoses.addValueChangedListener(new ValueChangeListener() {
-
-			private boolean fieldChangeByListener = false;
-
-			@Override
-			public void onChange(ControlPropertyField field) {
-				Object newValue = field.getValue();
-				if (fieldChangeByListener) {
-					fieldChangeByListener = false;
-					return;
-				} else if (newValue != null) {
-					String newValueString = newValue.toString();
-					String newValueStringTrimmed = newValueString.trim();
-					if (!newValueString.equals(newValueStringTrimmed)) {
-						fieldChangeByListener = true;
-						field.setValue(newValueStringTrimmed);
-
-					}
-
-				}
-			}
-		});
-
 		CaseValidator.initializeProhibitionToWorkIntervalValidator(contentBinding);
-		ValidationHelper
-			.initIntegerValidator(contentBinding.caseDataVaccinationDoses, I18nProperties.getValidationError(Validations.vaccineDosesFormat), 1, 10);
-		ValidationHelper.initDateIntervalValidator(contentBinding.caseDataFirstVaccinationDate, contentBinding.caseDataLastVaccinationDate);
 	}
 
 	private void fillConfirmedCaseClassificationCombo() {
@@ -656,16 +618,13 @@ public class CaseEditFragment extends BaseEditFragment<FragmentCaseEditLayoutBin
 		contentBinding.caseDataDengueFeverType.initializeSpinner(dengueFeverTypeList);
 		contentBinding.caseDataRabiesType.initializeSpinner(humanRabiesTypeList);
 		contentBinding.caseDataNotifyingClinic.initializeSpinner(hospitalWardTypeList);
-		contentBinding.caseDataVaccinationInfoSource.initializeSpinner(vaccinationInfoSourceList);
 		contentBinding.caseDataQuarantine.initializeSpinner(quarantineList);
-		contentBinding.caseDataReportingDistrict.initializeSpinner(allDistricts);
 		contentBinding.caseDataCaseConfirmationBasis.initializeSpinner(caseConfirmationBasisList);
 
 		// Initialize ControlDateFields
 		contentBinding.caseDataReportDate.initializeDateField(getFragmentManager());
 		contentBinding.caseDataOutcomeDate.initializeDateField(getFragmentManager());
-		contentBinding.caseDataFirstVaccinationDate.initializeDateField(getFragmentManager());
-		contentBinding.caseDataLastVaccinationDate.initializeDateField(getFragmentManager());
+		contentBinding.caseDataSmallpoxLastVaccinationDate.initializeDateField(getFragmentManager());
 		contentBinding.caseDataDistrictLevelDate.initializeDateField(getFragmentManager());
 		contentBinding.caseDataQuarantineFrom.initializeDateField(getFragmentManager());
 		contentBinding.caseDataQuarantineTo.initializeDateField(getFragmentManager());
@@ -680,11 +639,11 @@ public class CaseEditFragment extends BaseEditFragment<FragmentCaseEditLayoutBin
 			contentBinding.caseDataClassifiedBy.setValue(getResources().getString(R.string.system));
 		}
 
-		if (record.getHealthFacility() == null) {
+		if (record.getCaseOrigin() == CaseOrigin.POINT_OF_ENTRY) {
 			contentBinding.facilityTypeFieldsLayout.setVisibility(GONE);
 			contentBinding.caseDataHealthFacility.setVisibility(GONE);
 			contentBinding.caseDataHealthFacilityDetails.setVisibility(GONE);
-		} else if (FacilityDto.NONE_FACILITY_UUID.equals(record.getHealthFacility().getUuid())) {
+		} else if (record.getHealthFacility() != null && FacilityDto.NONE_FACILITY_UUID.equals(record.getHealthFacility().getUuid())) {
 			contentBinding.facilityOrHome.setValue(TypeOfPlace.HOME);
 		} else {
 			contentBinding.facilityOrHome.setValue(TypeOfPlace.FACILITY);
@@ -703,16 +662,11 @@ public class CaseEditFragment extends BaseEditFragment<FragmentCaseEditLayoutBin
 			contentBinding.caseDataContactTracingFirstContactType.initializeSpinner(contactTracingContactTypeList);
 			contentBinding.caseDataContactTracingFirstContactDate.initializeDateField(getChildFragmentManager());
 		}
-
 		// end swiss fields
 
 		contentBinding.caseDataInfectionSetting.initializeSpinner(infectionSettingList);
 		contentBinding.caseDataProhibitionToWorkFrom.initializeDateField(getChildFragmentManager());
 		contentBinding.caseDataProhibitionToWorkUntil.initializeDateField(getChildFragmentManager());
-
-		// vaccination
-		contentBinding.caseDataVaccineName.initializeSpinner(vaccineList);
-		contentBinding.caseDataVaccineManufacturer.initializeSpinner(vaccineManufacturerList);
 
 		// reinfection
 		contentBinding.caseDataPreviousInfectionDate.initializeDateField(getChildFragmentManager());

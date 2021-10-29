@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -41,24 +42,28 @@ import javax.persistence.criteria.ParameterExpression;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 
+import org.apache.commons.collections4.CollectionUtils;
+
 import de.symeda.sormas.api.AuthProvider;
-import de.symeda.sormas.api.facility.FacilityType;
-import de.symeda.sormas.api.region.RegionReferenceDto;
+import de.symeda.sormas.api.infrastructure.facility.FacilityType;
+import de.symeda.sormas.api.infrastructure.region.RegionReferenceDto;
 import de.symeda.sormas.api.user.JurisdictionLevel;
 import de.symeda.sormas.api.user.UserCriteria;
 import de.symeda.sormas.api.user.UserRight;
 import de.symeda.sormas.api.user.UserRole;
 import de.symeda.sormas.api.utils.DataHelper;
-import de.symeda.sormas.api.utils.DefaultUserHelper;
+import de.symeda.sormas.api.utils.DefaultEntityHelper;
 import de.symeda.sormas.api.utils.PasswordHelper;
 import de.symeda.sormas.backend.caze.Case;
 import de.symeda.sormas.backend.common.AbstractDomainObject;
 import de.symeda.sormas.backend.common.AdoServiceWithUserFilter;
+import de.symeda.sormas.backend.common.ConfigFacadeEjb.ConfigFacadeEjbLocal;
 import de.symeda.sormas.backend.common.CriteriaBuilderHelper;
 import de.symeda.sormas.backend.event.Event;
-import de.symeda.sormas.backend.facility.Facility;
-import de.symeda.sormas.backend.region.District;
-import de.symeda.sormas.backend.region.Region;
+import de.symeda.sormas.backend.infrastructure.facility.Facility;
+import de.symeda.sormas.backend.infrastructure.community.Community;
+import de.symeda.sormas.backend.infrastructure.district.District;
+import de.symeda.sormas.backend.infrastructure.region.Region;
 import de.symeda.sormas.backend.util.IterableHelper;
 import de.symeda.sormas.backend.util.ModelConstants;
 
@@ -68,6 +73,8 @@ public class UserService extends AdoServiceWithUserFilter<User> {
 
 	@EJB
 	private UserRoleConfigFacadeEjb.UserRoleConfigFacadeEjbLocal userRoleConfigFacade;
+	@EJB
+	private ConfigFacadeEjbLocal configFacade;
 
 	public UserService() {
 		super(User.class);
@@ -97,7 +104,7 @@ public class UserService extends AdoServiceWithUserFilter<User> {
 
 		Expression<String> userNameExpression = from.get(User.USER_NAME);
 		String userNameParamValue = userName;
-		if (!AuthProvider.getProvider().isUsernameCaseSensitive()) {
+		if (!AuthProvider.getProvider(configFacade).isUsernameCaseSensitive()) {
 			userNameExpression = cb.lower(userNameExpression);
 			userNameParamValue = userName.toLowerCase();
 		}
@@ -108,29 +115,6 @@ public class UserService extends AdoServiceWithUserFilter<User> {
 
 		User entity = q.getResultList().stream().findFirst().orElse(null);
 		return entity;
-	}
-
-	public List<User> getAllByUserRoles(UserRole... userRoles) {
-		return getAllByUserRoles(Arrays.asList(userRoles));
-	}
-
-	public List<User> getAllByUserRoles(Collection<UserRole> userRoles) {
-		CriteriaBuilder cb = em.getCriteriaBuilder();
-		CriteriaQuery<User> cq = cb.createQuery(getElementClass());
-		Root<User> from = cq.from(getElementClass());
-
-		Predicate filter = createDefaultFilter(cb, from);
-
-		if (userRoles.size() > 0) {
-			Join<User, UserRole> joinRoles = from.join(User.USER_ROLES, JoinType.LEFT);
-			Predicate rolesFilter = joinRoles.in(userRoles);
-			filter = CriteriaBuilderHelper.and(cb, filter, rolesFilter);
-			cq.where(filter);
-		}
-
-		cq.distinct(true).orderBy(cb.asc(from.get(AbstractDomainObject.ID)));
-
-		return em.createQuery(cq).getResultList();
 	}
 
 	public List<User> getAllByRegionAndUserRoles(Region region, UserRole... userRoles) {
@@ -145,14 +129,11 @@ public class UserService extends AdoServiceWithUserFilter<User> {
 		return getAllByRegionsAndUserRoles(Collections.singletonList(region), Arrays.asList(userRoles), this::createJurisdictionFilter);
 	}
 
-	public List<User> getAllByRegionsAndUserRolesInJurisdiction(Region region, UserRole... userRoles) {
-		return getAllByRegionsAndUserRoles(Collections.singletonList(region), Arrays.asList(userRoles), this::createJurisdictionFilter);
-	}
-
-	public List<User> getAllByRegionsAndUserRolesInJurisdiction(List<Region> regions, UserRole... userRoles) {
-		return getAllByRegionsAndUserRoles(regions, Arrays.asList(userRoles), this::createJurisdictionFilter);
-	}
-
+	/**
+	 * @see #getReferenceList(List, List, List, boolean, boolean, boolean, List) This method is partly a duplication for getReferenceList,
+	 *      but it's still in use for WeeklyReports and messageRecipients where more information of the user is needed
+	 *      and method signatures rely on {@link User}.
+	 */
 	private List<User> getAllByRegionsAndUserRoles(
 		List<Region> regions,
 		Collection<UserRole> userRoles,
@@ -186,6 +167,145 @@ public class UserService extends AdoServiceWithUserFilter<User> {
 		return em.createQuery(cq).getResultList();
 	}
 
+	/**
+	 * Loads users filtered by combinable filter conditions.<br />
+	 * Condition combination if parameter is set:<br />
+	 * {@code ((regionUuids & districtUuids & filterByJurisdiction & userRoles) | includeSupervisors) & activeOnly}
+	 * 
+	 * @see #createJurisdictionFilter(CriteriaBuilder, From)
+	 * @param regionUuids
+	 * @param districtUuids
+	 * @param includeSupervisors
+	 *            If set to {@code true}, all supervisors are returned independent of other filters.
+	 * @param filterByJurisdiction
+	 * @param activeOnly
+	 * @param userRoles
+	 */
+	public List<UserReference> getReferenceList(
+		List<String> regionUuids,
+		List<String> districtUuids,
+		boolean includeSupervisors,
+		boolean filterByJurisdiction,
+		boolean activeOnly,
+		UserRole... userRoles) {
+
+		return getReferenceList(regionUuids, districtUuids, null, includeSupervisors, filterByJurisdiction, activeOnly, Arrays.asList(userRoles));
+	}
+
+	/**
+	 * Loads users filtered by combinable filter conditions.<br />
+	 * Condition combination if parameter is set:<br />
+	 * {@code ((regionUuids & districtUuids & communityUuids & filterByJurisdiction & userRoles) | includeSupervisors) & activeOnly}
+	 *
+	 * @see #createJurisdictionFilter(CriteriaBuilder, From)
+	 * @param regionUuids
+	 * @param districtUuids
+	 * @param communityUuids
+	 * @param includeSupervisors
+	 *            If set to {@code true}, all supervisors are returned independent of other filters.
+	 * @param filterByJurisdiction
+	 * @param activeOnly
+	 * @param userRoles
+	 */
+	public List<UserReference> getReferenceList(
+		List<String> regionUuids,
+		List<String> districtUuids,
+		List<String> communityUuids,
+		boolean includeSupervisors,
+		boolean filterByJurisdiction,
+		boolean activeOnly,
+		List<UserRole> userRoles) {
+
+		CriteriaBuilder cb = em.getCriteriaBuilder();
+		CriteriaQuery<UserReference> cq = cb.createQuery(UserReference.class);
+		Root<UserReference> root = cq.from(UserReference.class);
+		Join<UserReference, UserRole> rolesJoin = root.join(User.USER_ROLES, JoinType.LEFT);
+		Root<User> userRoot = cq.from(User.class);
+		cq.select(root);
+
+		// WHERE inner AND
+		Predicate filter = null;
+		boolean userEntityJoinUsed = false;
+
+		if (CollectionUtils.isNotEmpty(regionUuids)) {
+			Join<User, Region> regionJoin = userRoot.join(User.REGION, JoinType.LEFT);
+			filter = CriteriaBuilderHelper.and(cb, filter, cb.in(regionJoin.get(Region.UUID)).value(regionUuids));
+			userEntityJoinUsed = true;
+		}
+		if (CollectionUtils.isNotEmpty(districtUuids)) {
+			Join<User, District> districtJoin = userRoot.join(User.DISTRICT, JoinType.LEFT);
+			filter = CriteriaBuilderHelper.and(cb, filter, cb.in(districtJoin.get(District.UUID)).value(districtUuids));
+			userEntityJoinUsed = true;
+		}
+		if (filterByJurisdiction) {
+			filter = CriteriaBuilderHelper.and(cb, filter, createJurisdictionFilter(cb, userRoot));
+			userEntityJoinUsed = true;
+		}
+		if (CollectionUtils.isNotEmpty(userRoles)) {
+			filter = CriteriaBuilderHelper.and(cb, filter, rolesJoin.in(userRoles));
+		}
+		if (userEntityJoinUsed) {
+			filter = CriteriaBuilderHelper.and(cb, filter, cb.equal(root.get(UserReference.ID), userRoot.get(User.ID)));
+		}
+
+		// WHERE OR
+		if (includeSupervisors) {
+			Predicate supervisorFilter = rolesJoin.in(
+				Arrays.asList(UserRole.CASE_SUPERVISOR, UserRole.CONTACT_SUPERVISOR, UserRole.SURVEILLANCE_SUPERVISOR, UserRole.ADMIN_SUPERVISOR));
+			filter = CriteriaBuilderHelper.or(cb, filter, supervisorFilter);
+		}
+
+		// WHERE outer AND
+		if (activeOnly) {
+			filter = CriteriaBuilderHelper.and(cb, filter, createDefaultFilter(cb, root));
+		}
+
+		if (CollectionUtils.isNotEmpty(communityUuids)) {
+			Join<User, Community> communityJoin = userRoot.join(User.COMMUNITY, JoinType.LEFT);
+			filter = CriteriaBuilderHelper.and(cb, filter, cb.in(communityJoin.get(Community.UUID)).value(communityUuids));
+		}
+
+		if (filter != null) {
+			cq.where(filter);
+		}
+
+		cq.distinct(true);
+		cq.orderBy(cb.asc(root.get(User.ID)));
+
+		List<UserReference> resultList = em.createQuery(cq).setHint(ModelConstants.HINT_HIBERNATE_READ_ONLY, true).getResultList();
+		return resultList;
+	}
+
+	public List<UserReference> getUserReferencesByIds(Collection<Long> userIds) {
+		CriteriaBuilder cb = em.getCriteriaBuilder();
+		CriteriaQuery<UserReference> cq = cb.createQuery(UserReference.class);
+		Root<UserReference> root = cq.from(UserReference.class);
+
+		cq.where(root.get(UserReference.ID).in(userIds));
+
+		return em.createQuery(cq).setHint(ModelConstants.HINT_HIBERNATE_READ_ONLY, true).getResultList();
+	}
+
+	public User getRandomUser(District district, UserRole... userRoles) {
+
+		return getRandomUser(getReferenceList(null, Arrays.asList(district.getUuid()), false, false, true, userRoles));
+	}
+
+	public User getRandomUser(Region region, UserRole... userRoles) {
+
+		return getRandomUser(getReferenceList(Arrays.asList(region.getUuid()), null, false, false, true, userRoles));
+	}
+
+	public User getRandomUser(List<UserReference> candidates) {
+
+		if (CollectionUtils.isEmpty(candidates)) {
+			return null;
+		}
+
+		UserReference chosenUser = candidates.get(new Random().nextInt(candidates.size()));
+		return getByUuid(chosenUser.getUuid());
+	}
+
 	public List<User> getInformantsOfFacility(Facility facility) {
 
 		if (facility == null || !FacilityType.HOSPITAL.equals(facility.getType())) {
@@ -200,10 +320,7 @@ public class UserService extends AdoServiceWithUserFilter<User> {
 		Predicate filter = cb.and(
 			createDefaultFilter(cb, from),
 			cb.equal(from.get(User.HEALTH_FACILITY), facility),
-			joinRoles.in(
-				Arrays.asList(
-					new UserRole[] {
-						UserRole.HOSPITAL_INFORMANT })));
+			joinRoles.in(Arrays.asList(UserRole.HOSPITAL_INFORMANT)));
 
 		cq.where(filter).distinct(true);
 		return em.createQuery(cq).getResultList();
@@ -223,56 +340,8 @@ public class UserService extends AdoServiceWithUserFilter<User> {
 		Predicate filter = cb.and(
 			createDefaultFilter(cb, from),
 			cb.equal(from.get(User.LABORATORY), facility),
-			joinRoles.in(
-				Arrays.asList(
-					new UserRole[] {
-						UserRole.LAB_USER,
-						UserRole.EXTERNAL_LAB_USER })));
+			joinRoles.in(Arrays.asList(UserRole.LAB_USER, UserRole.EXTERNAL_LAB_USER)));
 		cq.where(filter).distinct(true);
-
-		return em.createQuery(cq).getResultList();
-	}
-
-	/**
-	 * @param district
-	 * @param includeSupervisors
-	 *            If set to true, all supervisors are returned independent of the district
-	 * @param userRoles
-	 * @return
-	 */
-	public List<User> getAllByDistrict(District district, boolean includeSupervisors, UserRole... userRoles) {
-		return getAllByDistricts(Collections.singletonList(district), includeSupervisors, Arrays.asList(userRoles), null);
-	}
-
-	public List<User> getAllByDistrictInJurisdiction(District district, boolean includeSupervisors, UserRole... userRoles) {
-		return getAllByDistricts(Collections.singletonList(district), includeSupervisors, Arrays.asList(userRoles), this::createJurisdictionFilter);
-	}
-
-	public List<User> getAllByDistrictsInJurisdiction(List<District> districts, boolean includeSupervisors, UserRole... userRoles) {
-		return getAllByDistricts(districts, includeSupervisors, Arrays.asList(userRoles), this::createJurisdictionFilter);
-	}
-
-	private List<User> getAllByDistricts(
-		List<District> districts,
-		boolean includeSupervisors,
-		Collection<UserRole> userRoles,
-		BiFunction<CriteriaBuilder, Root<User>, Predicate> createExtraFilters) {
-
-		CriteriaBuilder cb = em.getCriteriaBuilder();
-		CriteriaQuery<User> cq = cb.createQuery(getElementClass());
-		Root<User> from = cq.from(getElementClass());
-
-		Predicate filter = cb.and(createDefaultFilter(cb, from), buildDistrictFilter(cb, from, districts, includeSupervisors, userRoles));
-
-		if (createExtraFilters != null) {
-			filter = CriteriaBuilderHelper.and(cb, filter, createExtraFilters.apply(cb, from));
-		}
-
-		if (filter != null) {
-			cq.where(filter);
-		}
-
-		cq.orderBy(cb.asc(from.get(AbstractDomainObject.ID)));
 
 		return em.createQuery(cq).getResultList();
 	}
@@ -297,26 +366,6 @@ public class UserService extends AdoServiceWithUserFilter<User> {
 		return em.createQuery(cq).getResultList();
 	}
 
-	public List<User> getAllInJurisdiction(boolean includeInactive) {
-		CriteriaBuilder cb = em.getCriteriaBuilder();
-		CriteriaQuery<User> cq = cb.createQuery(getElementClass());
-		Root<User> from = cq.from(getElementClass());
-
-		Predicate jurisdictionFilter = createJurisdictionFilter(cb, from);
-
-		if (!includeInactive) {
-			jurisdictionFilter = CriteriaBuilderHelper.and(cb, jurisdictionFilter, createDefaultFilter(cb, from));
-		}
-
-		if (jurisdictionFilter != null) {
-			cq.where(jurisdictionFilter);
-		}
-
-		cq.orderBy(cb.asc(from.get(AbstractDomainObject.ID)));
-
-		return em.createQuery(cq).getResultList();
-	}
-
 	public Map<String, User> getResponsibleUsersByEventUuids(List<String> eventUuids) {
 
 		Map<String, User> responsibleUserByEventUuid = new HashMap<>();
@@ -331,7 +380,8 @@ public class UserService extends AdoServiceWithUserFilter<User> {
 
 			cq.orderBy(cb.asc(eventRoot.get(Event.UUID)));
 
-			responsibleUserByEventUuid.putAll(em.createQuery(cq).getResultList().stream().collect(Collectors.toMap(row -> (String) row[0], row -> (User) row[1])));
+			responsibleUserByEventUuid
+				.putAll(em.createQuery(cq).getResultList().stream().collect(Collectors.toMap(row -> (String) row[0], row -> (User) row[1])));
 		});
 		return responsibleUserByEventUuid;
 	}
@@ -344,7 +394,7 @@ public class UserService extends AdoServiceWithUserFilter<User> {
 
 		Expression<String> userNameExpression = from.get(User.USER_NAME);
 		String userNameParamValue = userName;
-		if (!AuthProvider.getProvider().isUsernameCaseSensitive()) {
+		if (!AuthProvider.getProvider(configFacade).isUsernameCaseSensitive()) {
 			userNameExpression = cb.lower(userNameExpression);
 			userNameParamValue = userName.toLowerCase();
 		}
@@ -463,29 +513,6 @@ public class UserService extends AdoServiceWithUserFilter<User> {
 		return null;
 	}
 
-	private Predicate buildDistrictFilter(
-		CriteriaBuilder cb,
-		Root<User> from,
-		List<District> district,
-		boolean includeSupervisors,
-		Collection<UserRole> userRoles) {
-
-		Predicate filter = CriteriaBuilderHelper.and(cb, from.get(User.DISTRICT).in(district), buildUserRolesFilter(from, userRoles));
-
-		if (includeSupervisors) {
-			Join<User, UserRole> joinRoles = from.join(User.USER_ROLES, JoinType.LEFT);
-			Predicate supervisorFilter = joinRoles.in(
-				Arrays.asList(UserRole.CASE_SUPERVISOR, UserRole.CONTACT_SUPERVISOR, UserRole.SURVEILLANCE_SUPERVISOR, UserRole.ADMIN_SUPERVISOR));
-			if (filter != null) {
-				filter = cb.or(filter, supervisorFilter);
-			} else {
-				filter = supervisorFilter;
-			}
-		}
-
-		return filter;
-	}
-
 	public Long countByAssignedOfficer(User officer, UserRole... userRoles) {
 
 		CriteriaBuilder cb = em.getCriteriaBuilder();
@@ -514,11 +541,6 @@ public class UserService extends AdoServiceWithUserFilter<User> {
 		return getCurrentUser().getUserRoles().contains(userRoleName);
 	}
 
-	public boolean hasAnyRole(Set<UserRole> typeRoles) {
-		Set<UserRole> userRoles = getCurrentUser().getUserRoles();
-		return !userRoles.stream().filter(userRole -> typeRoles.contains(userRole)).collect(Collectors.toList()).isEmpty();
-	}
-
 	public boolean hasRight(UserRight right) {
 		User currentUser = getCurrentUser();
 		return userRoleConfigFacade.getEffectiveUserRights(currentUser.getUserRoles().toArray(new UserRole[0])).contains(right);
@@ -532,7 +554,11 @@ public class UserService extends AdoServiceWithUserFilter<User> {
 		return currentUser.getRegion().getUuid().equals(regionReference.getUuid());
 	}
 
-	public Predicate createDefaultFilter(CriteriaBuilder cb, From<?, User> root) {
+	/**
+	 * @param root
+	 *            root to {@link User} or {@link UserReference}.
+	 */
+	private Predicate createDefaultFilter(CriteriaBuilder cb, From<?, ?> root) {
 		return cb.isTrue(root.get(User.ACTIVE));
 	}
 
@@ -550,7 +576,7 @@ public class UserService extends AdoServiceWithUserFilter<User> {
 		CriteriaBuilder cb = em.getCriteriaBuilder();
 		CriteriaQuery<User> cq = cb.createQuery(getElementClass());
 		Root<User> from = cq.from(getElementClass());
-		cq.where(cb.and(createDefaultFilter(cb, from), from.get(User.USER_NAME).in(DefaultUserHelper.getDefaultUserNames())));
+		cq.where(cb.and(createDefaultFilter(cb, from), from.get(User.USER_NAME).in(DefaultEntityHelper.getDefaultUserNames())));
 		cq.orderBy(cb.asc(from.get(User.USER_NAME)));
 
 		return em.createQuery(cq).getResultList();

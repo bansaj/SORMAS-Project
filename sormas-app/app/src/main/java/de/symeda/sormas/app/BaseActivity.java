@@ -73,6 +73,7 @@ import de.symeda.sormas.app.rest.RetroProvider;
 import de.symeda.sormas.app.rest.SynchronizeDataAsync;
 import de.symeda.sormas.app.util.Bundler;
 import de.symeda.sormas.app.util.Callback;
+import de.symeda.sormas.app.util.LocationService;
 import de.symeda.sormas.app.util.NavigationHelper;
 
 import static de.symeda.sormas.app.core.notification.NotificationType.ERROR;
@@ -215,6 +216,10 @@ public abstract class BaseActivity extends BaseLocalizedActivity implements Noti
 		}
 
 		updatePageMenu();
+
+		if (ConfigProvider.getUser() == null || !LocationService.instance().validateGpsAccessAndEnabled(this)) {
+			return;
+		}
 	}
 
 	protected void updateStatusFrame() {
@@ -300,6 +305,8 @@ public abstract class BaseActivity extends BaseLocalizedActivity implements Noti
 					NavigationHelper.goToEvents(getContext());
 				} else if (id == R.id.menu_item_samples) {
 					NavigationHelper.goToSamples(getContext());
+				} else if (id == R.id.menu_item_immunizations) {
+					NavigationHelper.goToImmunizations(getContext());
 				} else if (id == R.id.menu_item_campaigns) {
 					NavigationHelper.goToCampaigns(getContext());
 				} else if (id == R.id.menu_item_reports) {
@@ -402,6 +409,7 @@ public abstract class BaseActivity extends BaseLocalizedActivity implements Noti
 			MenuItem contactMenu = menuNav.findItem(R.id.menu_item_contacts);
 			MenuItem eventMenu = menuNav.findItem(R.id.menu_item_events);
 			MenuItem sampleMenu = menuNav.findItem(R.id.menu_item_samples);
+			MenuItem immunizationMenu = menuNav.findItem(R.id.menu_item_samples);
 			MenuItem reportMenu = menuNav.findItem(R.id.menu_item_reports);
 			MenuItem campaignMenu = menuNav.findItem(R.id.menu_item_campaigns);
 
@@ -428,6 +436,12 @@ public abstract class BaseActivity extends BaseLocalizedActivity implements Noti
 				sampleMenu.setVisible(
 					ConfigProvider.hasUserRight(UserRight.SAMPLE_VIEW)
 						&& !DatabaseHelper.getFeatureConfigurationDao().isFeatureDisabled(FeatureType.SAMPLES_LAB));
+
+
+			if (immunizationMenu != null)
+				immunizationMenu.setVisible(
+					ConfigProvider.hasUserRight(UserRight.IMMUNIZATION_VIEW)
+						&& !DatabaseHelper.getFeatureConfigurationDao().isFeatureDisabled(FeatureType.IMMUNIZATION_MANAGEMENT));
 
 			if (eventMenu != null)
 				eventMenu.setVisible(

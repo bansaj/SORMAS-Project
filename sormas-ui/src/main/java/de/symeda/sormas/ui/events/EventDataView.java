@@ -51,6 +51,7 @@ import de.symeda.sormas.ui.utils.CommitDiscardWrapperComponent;
 import de.symeda.sormas.ui.utils.CssStyles;
 import de.symeda.sormas.ui.utils.DetailSubComponentWrapper;
 import de.symeda.sormas.ui.utils.LayoutUtil;
+import de.symeda.sormas.ui.utils.components.sidecomponent.SideComponentLayout;
 
 public class EventDataView extends AbstractEventView {
 
@@ -78,7 +79,7 @@ public class EventDataView extends AbstractEventView {
 	@Override
 	protected void initView(String params) {
 
-		EventDto event = FacadeProvider.getEventFacade().getEventByUuid(getEventRef().getUuid());
+		EventDto event = FacadeProvider.getEventFacade().getEventByUuid(getEventRef().getUuid(), false);
 
 		setHeightUndefined();
 
@@ -131,21 +132,23 @@ public class EventDataView extends AbstractEventView {
 			// TODO: user rights?
 			DocumentListComponent documentList =
 				new DocumentListComponent(DocumentRelatedEntityType.EVENT, getEventRef(), UserRight.EVENT_EDIT, event.isPseudonymized());
-			documentList.addStyleName(CssStyles.SIDE_COMPONENT);
-			layout.addComponent(documentList, DOCUMENTS_LOC);
+			layout.addComponent(new SideComponentLayout(documentList), DOCUMENTS_LOC);
 		}
 
 		EventDocumentsComponent eventDocuments = new EventDocumentsComponent(getEventRef());
 		eventDocuments.addStyleName(CssStyles.SIDE_COMPONENT);
 		layout.addComponent(eventDocuments, EventDocumentsComponent.DOCGENERATION_LOC);
 
-		SuperordinateEventComponent superordinateEventComponent = new SuperordinateEventComponent(event, () -> editComponent.discard());
-		superordinateEventComponent.addStyleName(CssStyles.SIDE_COMPONENT);
-		layout.addComponent(superordinateEventComponent, SUPERORDINATE_EVENT_LOC);
+		boolean eventHierarchiesFeatureEnabled = FacadeProvider.getFeatureConfigurationFacade().isFeatureEnabled(FeatureType.EVENT_HIERARCHIES);
+		if (eventHierarchiesFeatureEnabled) {
+			SuperordinateEventComponent superordinateEventComponent = new SuperordinateEventComponent(event, () -> editComponent.discard());
+			superordinateEventComponent.addStyleName(CssStyles.SIDE_COMPONENT);
+			layout.addComponent(superordinateEventComponent, SUPERORDINATE_EVENT_LOC);
 
-		EventListComponent subordinateEventList = new EventListComponent(event.toReference());
-		subordinateEventList.addStyleName(CssStyles.SIDE_COMPONENT);
-		layout.addComponent(subordinateEventList, SUBORDINATE_EVENTS_LOC);
+			EventListComponent subordinateEventList = new EventListComponent(event.toReference());
+			subordinateEventList.addStyleName(CssStyles.SIDE_COMPONENT);
+			layout.addComponent(subordinateEventList, SUBORDINATE_EVENTS_LOC);
+		}
 
 		boolean eventGroupsFeatureEnabled = FacadeProvider.getFeatureConfigurationFacade().isFeatureEnabled(FeatureType.EVENT_GROUPS);
 		if (eventGroupsFeatureEnabled) {
@@ -154,7 +157,7 @@ public class EventDataView extends AbstractEventView {
 			layout.addComponent(eventGroupsList, EVENT_GROUPS_LOC);
 		}
 
-		boolean sormasToSormasEnabled = FacadeProvider.getSormasToSormasFacade().isFeatureEnabled();
+		boolean sormasToSormasEnabled = FacadeProvider.getSormasToSormasFacade().isSharingEventsEnabledForUser();
 		if (sormasToSormasEnabled || event.getSormasToSormasOriginInfo() != null) {
 			VerticalLayout sormasToSormasLocLayout = new VerticalLayout();
 			sormasToSormasLocLayout.setMargin(false);

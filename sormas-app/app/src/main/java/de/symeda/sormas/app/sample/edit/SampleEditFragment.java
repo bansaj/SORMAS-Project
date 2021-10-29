@@ -15,24 +15,22 @@
 
 package de.symeda.sormas.app.sample.edit;
 
-import static android.view.View.GONE;
-import static android.view.View.VISIBLE;
+import android.content.Intent;
+import android.view.View;
+
+import androidx.annotation.Nullable;
+
+import com.google.android.gms.common.api.CommonStatusCodes;
+
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.StringUtils;
-
-import com.google.android.gms.common.api.CommonStatusCodes;
-
-import android.content.Intent;
-import android.view.View;
-
-import androidx.annotation.Nullable;
-
-import de.symeda.sormas.api.facility.FacilityDto;
+import de.symeda.sormas.api.feature.FeatureType;
+import de.symeda.sormas.api.infrastructure.facility.FacilityDto;
 import de.symeda.sormas.api.sample.AdditionalTestType;
 import de.symeda.sormas.api.sample.PathogenTestResultType;
 import de.symeda.sormas.api.sample.PathogenTestType;
@@ -58,6 +56,9 @@ import de.symeda.sormas.app.component.Item;
 import de.symeda.sormas.app.databinding.FragmentSampleEditLayoutBinding;
 import de.symeda.sormas.app.sample.read.SampleReadActivity;
 import de.symeda.sormas.app.util.DataUtils;
+
+import static android.view.View.GONE;
+import static android.view.View.VISIBLE;
 
 public class SampleEditFragment extends BaseEditFragment<FragmentSampleEditLayoutBinding, Sample, Sample> {
 
@@ -116,7 +117,8 @@ public class SampleEditFragment extends BaseEditFragment<FragmentSampleEditLayou
 		}
 
 		// Most recent additional tests layout
-		if (ConfigProvider.hasUserRight(UserRight.ADDITIONAL_TEST_VIEW)) {
+		if (ConfigProvider.hasUserRight(UserRight.ADDITIONAL_TEST_VIEW) &&
+				!DatabaseHelper.getFeatureConfigurationDao().isFeatureDisabled(FeatureType.ADDITIONAL_TESTS)) {
 			if (!record.isReceived()
 				|| record.getSpecimenCondition() != SpecimenCondition.ADEQUATE
 				|| !record.getAdditionalTestingRequested()
@@ -153,7 +155,8 @@ public class SampleEditFragment extends BaseEditFragment<FragmentSampleEditLayou
 		record = getActivityRootData();
 		if (record.getId() != null) {
 			mostRecentTest = DatabaseHelper.getSampleTestDao().queryMostRecentBySample(record);
-			if (ConfigProvider.hasUserRight(UserRight.ADDITIONAL_TEST_VIEW)) {
+			if (ConfigProvider.hasUserRight(UserRight.ADDITIONAL_TEST_VIEW)
+				&& !DatabaseHelper.getFeatureConfigurationDao().isFeatureDisabled(FeatureType.ADDITIONAL_TESTS)) {
 				mostRecentAdditionalTests = DatabaseHelper.getAdditionalTestDao().queryMostRecentBySample(record);
 			}
 		}
@@ -175,7 +178,7 @@ public class SampleEditFragment extends BaseEditFragment<FragmentSampleEditLayou
 				requestedPathogenTests.add(pathogenTest.toString());
 			}
 		}
-		if (ConfigProvider.hasUserRight(UserRight.ADDITIONAL_TEST_VIEW)) {
+		if (ConfigProvider.hasUserRight(UserRight.ADDITIONAL_TEST_VIEW) && !DatabaseHelper.getFeatureConfigurationDao().isFeatureDisabled(FeatureType.ADDITIONAL_TESTS)) {
 			requestedAdditionalTests.clear();
 			for (AdditionalTestType additionalTest : record.getRequestedAdditionalTests()) {
 				requestedAdditionalTests.add(additionalTest.toString());
@@ -246,6 +249,9 @@ public class SampleEditFragment extends BaseEditFragment<FragmentSampleEditLayou
 				contentBinding.sampleAdditionalTestingRequested
 					.setVisibility(ConfigProvider.getUser().equals(record.getReportingUser()) ? VISIBLE : GONE);
 			} else {
+				contentBinding.sampleShipped.setValue(null);
+				contentBinding.sampleShipmentDate.setValue(null);
+				contentBinding.sampleShipmentDetails.setValue(null);
 				contentBinding.externalSampleFieldsLayout.setVisibility(GONE);
 				contentBinding.samplePathogenTestingRequested.setVisibility(GONE);
 				contentBinding.sampleAdditionalTestingRequested.setVisibility(GONE);
@@ -279,6 +285,7 @@ public class SampleEditFragment extends BaseEditFragment<FragmentSampleEditLayou
 			contentBinding.samplePurpose.setEnabled(false);
 			contentBinding.sampleReceived.setEnabled(false);
 			contentBinding.sampleLabSampleID.setEnabled(false);
+			contentBinding.sampleSpecimenCondition.setEnabled(false);
 			contentBinding.samplePathogenTestingRequested.setVisibility(GONE);
 			contentBinding.sampleRequestedPathogenTests.setVisibility(GONE);
 			contentBinding.sampleAdditionalTestingRequested.setVisibility(GONE);
@@ -294,7 +301,8 @@ public class SampleEditFragment extends BaseEditFragment<FragmentSampleEditLayou
 				contentBinding.sampleRequestedOtherPathogenTests.setVisibility(GONE);
 			}
 
-			if (ConfigProvider.hasUserRight(UserRight.ADDITIONAL_TEST_VIEW)) {
+			if (ConfigProvider.hasUserRight(UserRight.ADDITIONAL_TEST_VIEW)
+				&& !DatabaseHelper.getFeatureConfigurationDao().isFeatureDisabled(FeatureType.ADDITIONAL_TESTS)) {
 				if (!requestedAdditionalTests.isEmpty()) {
 					contentBinding.sampleRequestedAdditionalTestsTags.setTags(requestedAdditionalTests);
 					if (StringUtils.isEmpty(record.getRequestedOtherAdditionalTests())) {
@@ -315,7 +323,8 @@ public class SampleEditFragment extends BaseEditFragment<FragmentSampleEditLayou
 			contentBinding.sampleRequestedAdditionalTestsTags.setVisibility(GONE);
 		}
 
-		if (!ConfigProvider.hasUserRight(UserRight.ADDITIONAL_TEST_VIEW)) {
+		if (!ConfigProvider.hasUserRight(UserRight.ADDITIONAL_TEST_VIEW)
+			&& !DatabaseHelper.getFeatureConfigurationDao().isFeatureDisabled(FeatureType.ADDITIONAL_TESTS)) {
 			contentBinding.additionalTestingLayout.setVisibility(GONE);
 		}
 	}

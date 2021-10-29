@@ -47,8 +47,6 @@ public class ContactDtoHelper extends AdoDtoHelper<Contact, ContactDto> {
 	private EpiDataDtoHelper epiDataDtoHelper = new EpiDataDtoHelper();
 	private HealthConditionsDtoHelper healthConditionsDtoHelper = new HealthConditionsDtoHelper();
 	private SormasToSormasOriginInfoDtoHelper sormasToSormasOriginInfoDtoHelper = new SormasToSormasOriginInfoDtoHelper();
-	// TODO [vaccination info] integrate vaccination info
-	//	private VaccinationInfoDtoHelper vaccinationInfoDtoHelper = new VaccinationInfoDtoHelper();
 
 	public ContactDtoHelper() {
 	}
@@ -114,6 +112,7 @@ public class ContactDtoHelper extends AdoDtoHelper<Contact, ContactDto> {
 		target.setReportLatLonAccuracy(source.getReportLatLonAccuracy());
 		target.setExternalID(source.getExternalID());
 		target.setExternalToken(source.getExternalToken());
+		target.setInternalToken(source.getInternalToken());
 		target.setRegion(DatabaseHelper.getRegionDao().getByReferenceDto(source.getRegion()));
 		target.setDistrict(DatabaseHelper.getDistrictDao().getByReferenceDto(source.getDistrict()));
 		target.setCommunity(DatabaseHelper.getCommunityDao().getByReferenceDto(source.getCommunity()));
@@ -168,9 +167,7 @@ public class ContactDtoHelper extends AdoDtoHelper<Contact, ContactDto> {
 		target.setReportingDistrict(DatabaseHelper.getDistrictDao().getByReferenceDto(source.getReportingDistrict()));
 		target.setFollowUpStatusChangeDate(source.getFollowUpStatusChangeDate());
 		target.setFollowUpStatusChangeUser(DatabaseHelper.getUserDao().getByReferenceDto(source.getFollowUpStatusChangeUser()));
-
-		// TODO [vaccination info] integrate vaccination info
-//		target.setVaccinationInfo(vaccinationInfoDtoHelper.fillOrCreateFromDto(target.getVaccinationInfo(), source.getVaccinationInfo()));
+		target.setVaccinationStatus(source.getVaccinationStatus());
 	}
 
 	@Override
@@ -250,6 +247,7 @@ public class ContactDtoHelper extends AdoDtoHelper<Contact, ContactDto> {
 		target.setReportLatLonAccuracy(source.getReportLatLonAccuracy());
 		target.setExternalID(source.getExternalID());
 		target.setExternalToken(source.getExternalToken());
+		target.setInternalToken(source.getInternalToken());
 
 		target.setHighPriority(source.isHighPriority());
 		target.setImmunosuppressiveTherapyBasicDisease(source.getImmunosuppressiveTherapyBasicDisease());
@@ -316,13 +314,7 @@ public class ContactDtoHelper extends AdoDtoHelper<Contact, ContactDto> {
 		}
 		target.setFollowUpStatusChangeDate(source.getFollowUpStatusChangeDate());
 		target.setFollowUpStatusChangeUser(UserDtoHelper.toReferenceDto(source.getFollowUpStatusChangeUser()));
-
-		// TODO [vaccination info] integrate vaccination info
-//		if (source.getVaccinationInfo() != null) {
-//			target.setVaccinationInfo(vaccinationInfoDtoHelper.adoToDto(source.getVaccinationInfo()));
-//		} else {
-//			target.setVaccinationInfo(null);
-//		}
+		target.setVaccinationStatus(source.getVaccinationStatus());
 	}
 
 	public static ContactReferenceDto toReferenceDto(Contact ado) {

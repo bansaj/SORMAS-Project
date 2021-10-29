@@ -12,6 +12,8 @@ import java.util.Map;
 
 import org.apache.commons.collections.CollectionUtils;
 
+import com.vaadin.shared.ui.ContentMode;
+import com.vaadin.ui.Label;
 import com.vaadin.v7.ui.CheckBox;
 import com.vaadin.v7.ui.ComboBox;
 import com.vaadin.v7.ui.DateField;
@@ -42,9 +44,13 @@ public class SampleCreateForm extends AbstractSampleForm {
 
 	private static final long serialVersionUID = 1L;
 
+	private static final String HORIZONTAL_RULE = "horizontalRule";
+
 	private static final String HTML_LAYOUT = SAMPLE_COMMON_HTML_LAYOUT
 		+ fluidRowLocs(Captions.sampleIncludeTestOnCreation)
+		+ fluidRowLocs(HORIZONTAL_RULE)
 		+ fluidRowLocs(PathogenTestDto.REPORT_DATE, PathogenTestDto.VIA_LIMS)
+		+ fluidRowLocs(PathogenTestDto.EXTERNAL_ID, PathogenTestDto.EXTERNAL_ORDER_ID)
 		+ fluidRowLocs(PathogenTestDto.TEST_RESULT, PathogenTestDto.TEST_RESULT_VERIFIED)
 		+ fluidRowLocs(PathogenTestDto.TEST_TYPE, PathogenTestDto.PCR_TEST_SPECIFICATION)
 		+ fluidRowLocs(PathogenTestDto.TESTED_DISEASE, PathogenTestDto.TESTED_DISEASE_VARIANT)
@@ -61,9 +67,12 @@ public class SampleCreateForm extends AbstractSampleForm {
 	@SuppressWarnings("deprecation")
 	@Override
 	protected void addFields() {
-
 		addCommonFields();
 		includeTestField = addCustomField(Captions.sampleIncludeTestOnCreation, Boolean.class, CheckBox.class);
+		Label horizontalRule = new Label("<br><hr /><br>", ContentMode.HTML);
+		horizontalRule.setWidth(100f, Unit.PERCENTAGE);
+		horizontalRule.setVisible(false);
+		getContent().addComponent(horizontalRule, HORIZONTAL_RULE);
 		ComboBox pathogenTestResultField = addCustomField(PathogenTestDto.TEST_RESULT, PathogenTestResultType.class, ComboBox.class);
 		pathogenTestResultField.removeItem(PathogenTestResultType.NOT_DONE);
 		NullableOptionGroup testVerifiedField = addCustomField(PathogenTestDto.TEST_RESULT_VERIFIED, Boolean.class, NullableOptionGroup.class);
@@ -75,13 +84,19 @@ public class SampleCreateForm extends AbstractSampleForm {
 				Date.class,
 				DateField.class);
 
+			TextField externalIdField = addCustomField(PathogenTestDto.EXTERNAL_ID, String.class, TextField.class);
+			TextField externalOrderIdField = addCustomField(PathogenTestDto.EXTERNAL_ORDER_ID, String.class, TextField.class);
 			CheckBox viaLimsField = addCustomField(PathogenTestDto.VIA_LIMS, Boolean.class, CheckBox.class);
 
-			FieldHelper.setVisibleWhen(includeTestField, Arrays.asList(reportDateField, viaLimsField), Collections.singletonList(true), true);
+			FieldHelper.setVisibleWhen(
+				includeTestField,
+				Arrays.asList(reportDateField, externalIdField, externalOrderIdField, viaLimsField),
+				Collections.singletonList(true),
+				true);
 		}
 		ComboBox testTypeField = addCustomField(PathogenTestDto.TEST_TYPE, PathogenTestType.class, ComboBox.class);
 		ComboBox pcrTestSpecification = addCustomField(PathogenTestDto.PCR_TEST_SPECIFICATION, PCRTestSpecification.class, ComboBox.class);
-		ComboBox testDiseaseField = addCustomField(PathogenTestDto.TESTED_DISEASE, Disease.class, ComboBox.class);
+		ComboBox testedDiseaseField = addCustomField(PathogenTestDto.TESTED_DISEASE, Disease.class, ComboBox.class);
 		ComboBox diseaseVariantField = addCustomField(PathogenTestDto.TESTED_DISEASE_VARIANT, DiseaseVariant.class, ComboBox.class);
 		TextField cqValueField = addCustomField(PathogenTestDto.CQ_VALUE, Float.class, TextField.class);
 		cqValueField.setConversionError(I18nProperties.getValidationError(Validations.onlyNumbersAllowed, cqValueField.getCaption()));
@@ -107,7 +122,7 @@ public class SampleCreateForm extends AbstractSampleForm {
 		Map<Field, List<Object>> pcrTestSpecificationVisibilityDependencies = new HashMap<Field, List<Object>>() {
 
 			{
-				put(testDiseaseField, Arrays.asList(Disease.CORONAVIRUS));
+				put(testedDiseaseField, Arrays.asList(Disease.CORONAVIRUS));
 				put(testTypeField, Arrays.asList(PathogenTestType.PCR_RT_PCR));
 			}
 		};
@@ -115,7 +130,7 @@ public class SampleCreateForm extends AbstractSampleForm {
 
 		FieldHelper.setVisibleWhen(
 			includeTestField,
-			Arrays.asList(pathogenTestResultField, testVerifiedField, testTypeField, testDiseaseField, testDateField, testDetailsField),
+			Arrays.asList(pathogenTestResultField, testVerifiedField, testTypeField, testedDiseaseField, testDateField, testDetailsField),
 			Arrays.asList(true),
 			true);
 
@@ -123,7 +138,7 @@ public class SampleCreateForm extends AbstractSampleForm {
 
 		FieldHelper.setRequiredWhen(
 			pathogenTestResultField,
-			Arrays.asList(testVerifiedField, testTypeField, testDiseaseField, testDateField),
+			Arrays.asList(testVerifiedField, testTypeField, testedDiseaseField),
 			Arrays.asList(
 				PathogenTestResultType.POSITIVE,
 				PathogenTestResultType.NEGATIVE,
@@ -141,7 +156,7 @@ public class SampleCreateForm extends AbstractSampleForm {
 				false,
 				I18nProperties.getValidationError(Validations.afterDate, testDateField.getCaption(), sampleDateField.getCaption())));
 
-		testDiseaseField.addValueChangeListener((ValueChangeListener) valueChangeEvent -> {
+		testedDiseaseField.addValueChangeListener((ValueChangeListener) valueChangeEvent -> {
 			Disease disease = (Disease) valueChangeEvent.getProperty().getValue();
 			List<DiseaseVariant> diseaseVariants =
 				FacadeProvider.getCustomizableEnumFacade().getEnumValues(CustomizableEnumType.DISEASE_VARIANT, disease);
@@ -162,7 +177,7 @@ public class SampleCreateForm extends AbstractSampleForm {
 			PathogenTestType testType = (PathogenTestType) e.getProperty().getValue();
 			PathogenTestResultType testResult = (PathogenTestResultType) pathogenTestResultField.getValue();
 			showCqValueField(cqValueField, testType, testResult);
-			showPcrTestSpecificationField(pcrTestSpecification, testType, (Disease) testDiseaseField.getValue());
+			showPcrTestSpecificationField(pcrTestSpecification, testType, (Disease) testedDiseaseField.getValue());
 			if (testType == PathogenTestType.PCR_RT_PCR || testType == PathogenTestType.DNA_MICROARRAY || testType == PathogenTestType.SEQUENCING) {
 				typingIdField.setVisible(true);
 			} else {
@@ -173,9 +188,11 @@ public class SampleCreateForm extends AbstractSampleForm {
 
 		includeTestField.addValueChangeListener(e -> {
 			final Boolean includeTest = (Boolean) e.getProperty().getValue();
+			horizontalRule.setVisible(includeTest);
 			if (includeTest) {
 				pathogenTestResultField.setNullSelectionAllowed(false);
 				pathogenTestResultField.setValue(PathogenTestResultType.PENDING);
+				testedDiseaseField.setValue(FacadeProvider.getDiseaseConfigurationFacade().getDefaultDisease());
 			} else {
 				pathogenTestResultField.setNullSelectionAllowed(true);
 				pathogenTestResultField.setValue(null);
@@ -186,7 +203,6 @@ public class SampleCreateForm extends AbstractSampleForm {
 			defaultValueChangeListener();
 			final NullableOptionGroup samplePurposeField = (NullableOptionGroup) getField(SampleDto.SAMPLE_PURPOSE);
 			samplePurposeField.setValue(SamplePurpose.EXTERNAL);
-			getField(SampleDto.PATHOGEN_TEST_RESULT).setVisible(false);
 		});
 	}
 
@@ -230,6 +246,12 @@ public class SampleCreateForm extends AbstractSampleForm {
 		if (FacadeProvider.getConfigFacade().isConfiguredCountry(CountryHelper.COUNTRY_CODE_GERMANY)) {
 			final DateField reportDateField = getField(PathogenTestDto.REPORT_DATE);
 			reportDateField.setCaption(getPrefixCaption(PathogenTestDto.I18N_PREFIX, PathogenTestDto.REPORT_DATE));
+
+			final TextField externalIdField = getField(PathogenTestDto.EXTERNAL_ID);
+			externalIdField.setCaption(getPrefixCaption(PathogenTestDto.I18N_PREFIX, PathogenTestDto.EXTERNAL_ID));
+
+			final TextField externalOrderIdField = getField(PathogenTestDto.EXTERNAL_ORDER_ID);
+			externalOrderIdField.setCaption(getPrefixCaption(PathogenTestDto.I18N_PREFIX, PathogenTestDto.EXTERNAL_ORDER_ID));
 
 			final CheckBox viaLimsField = getField(PathogenTestDto.VIA_LIMS);
 			viaLimsField.setCaption(getPrefixCaption(PathogenTestDto.I18N_PREFIX, PathogenTestDto.VIA_LIMS));

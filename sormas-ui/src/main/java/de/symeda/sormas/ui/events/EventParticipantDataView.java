@@ -1,6 +1,6 @@
 /*
  * SORMAS® - Surveillance Outbreak Response Management & Analysis System
- * Copyright © 2016-2020 Helmholtz-Zentrum für Infektionsforschung GmbH (HZI)
+ * Copyright © 2016-2021 Helmholtz-Zentrum für Infektionsforschung GmbH (HZI)
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -12,7 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
 package de.symeda.sormas.ui.events;
 
 import static de.symeda.sormas.ui.docgeneration.QuarantineOrderDocumentsComponent.QUARANTINE_LOC;
@@ -24,13 +23,17 @@ import com.vaadin.ui.CustomLayout;
 import com.vaadin.ui.Label;
 import com.vaadin.ui.VerticalLayout;
 
+import de.symeda.sormas.api.Disease;
 import de.symeda.sormas.api.FacadeProvider;
 import de.symeda.sormas.api.docgeneneration.DocumentWorkflow;
+import de.symeda.sormas.api.event.EventDto;
 import de.symeda.sormas.api.event.EventParticipantDto;
 import de.symeda.sormas.api.event.EventParticipantReferenceDto;
+import de.symeda.sormas.api.feature.FeatureType;
 import de.symeda.sormas.api.i18n.Captions;
 import de.symeda.sormas.api.i18n.I18nProperties;
 import de.symeda.sormas.api.i18n.Strings;
+import de.symeda.sormas.api.immunization.ImmunizationListCriteria;
 import de.symeda.sormas.api.sample.SampleCriteria;
 import de.symeda.sormas.api.user.UserRight;
 import de.symeda.sormas.ui.ControllerProvider;
@@ -38,6 +41,7 @@ import de.symeda.sormas.ui.SubMenu;
 import de.symeda.sormas.ui.UserProvider;
 import de.symeda.sormas.ui.contact.ContactListComponent;
 import de.symeda.sormas.ui.docgeneration.QuarantineOrderDocumentsComponent;
+import de.symeda.sormas.ui.immunization.immunizationlink.ImmunizationListComponent;
 import de.symeda.sormas.ui.samples.sampleLink.SampleListComponent;
 import de.symeda.sormas.ui.sormastosormas.SormasToSormasListComponent;
 import de.symeda.sormas.ui.utils.AbstractDetailView;
@@ -45,6 +49,7 @@ import de.symeda.sormas.ui.utils.CommitDiscardWrapperComponent;
 import de.symeda.sormas.ui.utils.CssStyles;
 import de.symeda.sormas.ui.utils.DetailSubComponentWrapper;
 import de.symeda.sormas.ui.utils.LayoutUtil;
+import de.symeda.sormas.ui.utils.components.sidecomponent.SideComponentLayout;
 
 public class EventParticipantDataView extends AbstractDetailView<EventParticipantReferenceDto> {
 
@@ -55,12 +60,14 @@ public class EventParticipantDataView extends AbstractDetailView<EventParticipan
 	public static final String EDIT_LOC = "edit";
 	public static final String SAMPLES_LOC = "samples";
 	public static final String CONTACTS_LOC = "contacts";
+	public static final String IMMUNIZATION_LOC = "immunizations";
 	public static final String SORMAS_TO_SORMAS_LOC = "sormasToSormas";
 
 	public static final String HTML_LAYOUT = LayoutUtil.fluidRow(
 		LayoutUtil.fluidColumnLoc(8, 0, 12, 0, EDIT_LOC),
 		LayoutUtil.fluidColumnLoc(4, 0, 6, 0, SAMPLES_LOC),
 		LayoutUtil.fluidColumnLoc(4, 0, 6, 0, CONTACTS_LOC),
+		LayoutUtil.fluidColumnLoc(4, 0, 6, 0, IMMUNIZATION_LOC),
 		LayoutUtil.fluidColumnLoc(4, 0, 6, 0, QUARANTINE_LOC),
 		LayoutUtil.fluidColumnLoc(4, 0, 6, 0, SORMAS_TO_SORMAS_LOC));
 
@@ -152,7 +159,7 @@ public class EventParticipantDataView extends AbstractDetailView<EventParticipan
 			layout.addComponent(contactsLayout, CONTACTS_LOC);
 		}
 
-		boolean sormasToSormasEnabled = FacadeProvider.getSormasToSormasFacade().isFeatureEnabled();
+		boolean sormasToSormasEnabled = FacadeProvider.getSormasToSormasFacade().isSharingEventsEnabledForUser();
 		if (sormasToSormasEnabled || eventParticipant.getSormasToSormasOriginInfo() != null) {
 			VerticalLayout sormasToSormasLocLayout = new VerticalLayout();
 			sormasToSormasLocLayout.setMargin(false);
@@ -174,6 +181,17 @@ public class EventParticipantDataView extends AbstractDetailView<EventParticipan
 		boolean isEditAllowed = FacadeProvider.getEventParticipantFacade().isEventParticipantEditAllowed(eventParticipantRef.getUuid());
 		if (!isEditAllowed) {
 			container.setEnabled(false);
+		}
+
+		if (FacadeProvider.getFeatureConfigurationFacade().isFeatureEnabled(FeatureType.IMMUNIZATION_MANAGEMENT)
+			&& UserProvider.getCurrent().hasUserRight(UserRight.IMMUNIZATION_VIEW)) {
+			final EventDto eventDto = FacadeProvider.getEventFacade().getEventByUuid(eventParticipant.getEvent().getUuid(), false);
+			final Disease disease = eventDto.getDisease();
+			if (disease != null) {
+				final ImmunizationListCriteria immunizationListCriteria =
+					new ImmunizationListCriteria.Builder(eventParticipant.getPerson().toReference()).wihDisease(disease).build();
+				layout.addComponent(new SideComponentLayout(new ImmunizationListComponent(immunizationListCriteria)), IMMUNIZATION_LOC);
+			}
 		}
 	}
 
