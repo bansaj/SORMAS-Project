@@ -128,6 +128,7 @@
 
     <string name="caption_address">Address</string>
     <string name="caption_age">Age</string>
+    <string name="caption_age_unit">Age Unit</string>
     <string name="caption_attended_by">Attended by</string>
     <string name="caption_case_clinical_visits">Clinical Assessments</string>
     <string name="caption_case_contacts">Case Contacts</string>
