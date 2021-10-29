@@ -301,39 +301,28 @@
 
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/person_birthdateLabel"
-                style="@style/ControlLabelStyle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/caption_date_of_birth" />
-
             <LinearLayout
-                android:id="@+id/birthday_fields_layout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
 
-                <de.symeda.sormas.app.component.controls.ControlSpinnerField
-                    android:id="@+id/person_birthdateYYYY"
-                    style="@style/ControlFirstOfTwoColumnsStyle"
-                    app:hint="@string/hint_select_year"
-                    app:showCaption="false"
-                    app:value="@={data.person.birthdateYYYY}" />
+                <de.symeda.sormas.app.component.controls.ControlTextEditField
+                    android:id="@+id/person_approximateAge"
+                    app:value="@={data.person.approximateAge}"
+                    app:inputType="number"
+                    app:maxLength="3"
+                    style="@style/ControlFirstOfTwoColumnsStyle" />
 
                 <de.symeda.sormas.app.component.controls.ControlSpinnerField
-                    android:id="@+id/person_birthdateMM"
-                    style="@style/ControlSecondOfTwoColumnsStyle"
-                    app:hint="@string/hint_select_month"
-                    app:showCaption="false"
-                    app:value="@={data.person.birthdateMM}" />
+                    android:id="@+id/person_approximateAgeType"
+                    app:value="@={data.person.approximateAgeType}"
+                    app:caption="@string/caption_age_unit"
+                    style="@style/ControlSecondOfTwoColumnsStyle" />
 
-                <de.symeda.sormas.app.component.controls.ControlSpinnerField
-                    android:id="@+id/person_birthdateDD"
-                    style="@style/ControlSecondOfTwoColumnsStyle"
-                    app:hint="@string/hint_select_day"
-                    app:showCaption="false"
-                    app:value="@={data.person.birthdateDD}" />
+<!--                <de.symeda.sormas.app.component.controls.ControlTextReadField-->
+<!--                    android:id="@+id/person_approximateAgeReferenceDate"-->
+<!--                    app:value="@{data.person.approximateAgeReferenceDate}"-->
+<!--                    style="@style/ControlSecondOfTwoColumnsStyle" />-->
 
             </LinearLayout>
 

@@ -33,10 +33,11 @@ import de.symeda.sormas.api.disease.DiseaseVariant;
 import de.symeda.sormas.api.event.TypeOfPlace;
 import de.symeda.sormas.api.infrastructure.facility.FacilityType;
 import de.symeda.sormas.api.infrastructure.facility.FacilityTypeGroup;
+import de.symeda.sormas.api.person.ApproximateAgeType;
 import de.symeda.sormas.api.person.PresentCondition;
 import de.symeda.sormas.api.person.Sex;
 import de.symeda.sormas.api.user.UserRole;
-import de.symeda.sormas.api.utils.DateHelper;
+import de.symeda.sormas.api.utils.DataHelper;
 import de.symeda.sormas.app.BaseEditFragment;
 import de.symeda.sormas.app.R;
 import de.symeda.sormas.app.backend.caze.Case;
@@ -62,6 +63,7 @@ public class CaseNewFragment extends BaseEditFragment<FragmentCaseNewLayoutBindi
 	private List<Item> yearList;
 	private List<Item> monthList;
 	private List<Item> sexList;
+	private List<Item> approximateAgeTypeList;
 	private List<Item> presentConditionList;
 	private List<Item> diseaseList;
 	private List<Item> diseaseVariantList;
@@ -116,9 +118,9 @@ public class CaseNewFragment extends BaseEditFragment<FragmentCaseNewLayoutBindi
 		dengueFeverTypeList = DataUtils.getEnumItems(DengueFeverType.class, true);
 		rabiesTypeList = DataUtils.getEnumItems(RabiesType.class, true);
 
-		yearList = DataUtils.toItems(DateHelper.getYearsToNow(), true);
-		monthList = DataUtils.getMonthItems(true);
-
+//		yearList = DataUtils.toItems(DateHelper.getYearsToNow(), true);
+//		monthList = DataUtils.getMonthItems(true);
+		approximateAgeTypeList = DataUtils.getEnumItems(ApproximateAgeType.class, true);
 		sexList = DataUtils.getEnumItems(Sex.class, true);
 		presentConditionList = DataUtils.getEnumItems(PresentCondition.class, true);
 
@@ -139,8 +141,12 @@ public class CaseNewFragment extends BaseEditFragment<FragmentCaseNewLayoutBindi
 		contentBinding.setData(record);
 		contentBinding.setCaseOriginClass(CaseOrigin.class);
 
-		PersonValidator
-			.initializeBirthDateValidation(contentBinding.personBirthdateYYYY, contentBinding.personBirthdateMM, contentBinding.personBirthdateDD);
+//		PersonValidator
+//			.initialize<de.symeda.sormas.app.component.controls.ControlTextEditField
+//                    android:id="@+id/caseData_firstName"
+//                    style="@style/ControlFirstOfTwoColumnsStyle"
+//                    app:required="true"
+//                    app:value="@={data.person.firstName}" />BirthDateValidation(contentBinding.personBirthdateYYYY, contentBinding.personBirthdateMM, contentBinding.personBirthdateDD);
 
 		contentBinding.caseDataPlagueType.initializeSpinner(plagueTypeList);
 		contentBinding.caseDataDengueFeverType.initializeSpinner(dengueFeverTypeList);
@@ -223,23 +229,25 @@ public class CaseNewFragment extends BaseEditFragment<FragmentCaseNewLayoutBindi
 		contentBinding.caseDataHumanRabiesType.initializeSpinner(rabiesTypeList);
 		contentBinding.caseDataReportDate.initializeDateField(getFragmentManager());
 		contentBinding.symptomsOnsetDate.initializeDateField(getFragmentManager());
+		contentBinding.personApproximateAgeType.initializeSpinner(approximateAgeTypeList);
+//		contentBinding.personApproximateAge.addValueChangedListener(field -> {
+//			if (DataHelper.isNullOrEmpty((String) field.getValue())) {
+//				contentBinding.personApproximateAgeType.setRequired(false);
+//				contentBinding.personApproximateAgeType.setValue(null);
+//			} else {
+//				contentBinding.personApproximateAgeType.setRequired(true);
+//				if (contentBinding.personApproximateAgeType.getValue() == null) {
+//					contentBinding.personApproximateAgeType.setValue(ApproximateAgeType.YEARS);
+//				}
+//			}
+//		});
 
-		contentBinding.personBirthdateDD.initializeSpinner(new ArrayList<>());
-		contentBinding.personBirthdateMM.initializeSpinner(monthList, field -> {
-			DataUtils.updateListOfDays(
-				contentBinding.personBirthdateDD,
-				(Integer) contentBinding.personBirthdateYYYY.getValue(),
-				(Integer) field.getValue());
-		});
-		contentBinding.personBirthdateYYYY.initializeSpinner(yearList, field -> {
-			DataUtils.updateListOfDays(
-				contentBinding.personBirthdateDD,
-				(Integer) field.getValue(),
-				(Integer) contentBinding.personBirthdateMM.getValue());
-		});
-
-		int year = Calendar.getInstance().get(Calendar.YEAR);
-		contentBinding.personBirthdateYYYY.setSelectionOnOpen(year - 35);
+//		if (!DataHelper.isNullOrEmpty(contentBinding.personApproximateAge.getValue())) {
+//			contentBinding.personApproximateAgeType.setRequired(true);
+//			if (contentBinding.personApproximateAgeType.getValue() == null) {
+//				contentBinding.personApproximateAgeType.setValue(ApproximateAgeType.YEARS);
+//			}
+//		}
 
 		contentBinding.personSex.initializeSpinner(sexList);
 
@@ -308,9 +316,11 @@ public class CaseNewFragment extends BaseEditFragment<FragmentCaseNewLayoutBindi
 			contentBinding.caseDataFirstName.setEnabled(false);
 			contentBinding.caseDataLastName.setEnabled(false);
 			contentBinding.personSex.setEnabled(false);
-			contentBinding.personBirthdateYYYY.setEnabled(false);
-			contentBinding.personBirthdateMM.setEnabled(false);
-			contentBinding.personBirthdateDD.setEnabled(false);
+			contentBinding.personApproximateAgeType.setEnabled(false);
+			contentBinding.personApproximateAge.setEnabled(false);
+//			contentBinding.personBirthdateYYYY.setEnabled(false);
+//			contentBinding.personBirthdateMM.setEnabled(false);
+//			contentBinding.personBirthdateDD.setEnabled(false);
 			contentBinding.caseDataDisease.setEnabled(false);
 			contentBinding.caseDataDiseaseDetails.setEnabled(false);
 			contentBinding.caseDataPlagueType.setEnabled(false);
